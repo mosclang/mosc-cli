@@ -1,0 +1,99 @@
+kabo "io" nani Npalan
+kabo "os" nani Process
+
+kulu Color {
+  dialen GREEN { "\u001b[32m" }
+  dialen RED { "\u001b[31m" }
+  dialen BOLD { "\u001b[1m" }
+  dialen RESET { "\u001b[0m" }
+}
+
+kulu DieGnogon {
+  nin _name
+  nin _version
+  nin _source
+  dilan kura(name, version, source) {
+    ale._name = name
+    ale._version = version
+    ale._source = source
+  }
+  togo { ale._name }
+  yelema { ale._version }
+  source { ale._source }
+  sebenma { "DieGnogon(${ale._name} - ${ale._version}" }
+}
+
+kulu Runner {
+  nin _jobs
+  dilan kura() {
+    ale._jobs = []
+  }
+  aFaraAkan(cmd, args) { ale.aFaraAkan(cmd,args,gansan) }
+  aFaraAkan(cmd, args, path) {
+    ale._jobs.aFaraAkan([cmd,args,path])
+  }
+  run(cmd, args) { ale.run(cmd,args,gansan) }
+  run(cmd, args, cwd) {
+    nin result
+    A.yira(" - [R] ${cmd} " + args.join(" "))
+    segin niin Process.exec(cmd, args, cwd)
+  }
+  go() {
+    ale._jobs.kelenkelen { (job) =>
+      nin r = ale.run(job[0], job[1], job[2])
+      nii (r!=0) {
+        Djuru.tike(" - FAILED (got error code ${r})")
+      }
+    }
+  }
+}
+
+nin ShowVersion = Tii.kura() {
+  A.yira("filen v0.4.0 (embedded)")
+}
+
+kulu Filen {
+  dilan kura() {}
+  dieGnogonw { [] }
+  togo { "filen" }
+  list() {
+    A.yira("${ale.togo} DieGnogonw:")
+    ale.dieGnogonw.kelenkelen { (dep) =>
+      A.yira("- ${dep.togo} ${dep.yelema}")
+    }
+  }
+  default() {
+    nii (["[-v]","[--version]"].bAkono(Process.arguments.sebenma)) {
+      ShowVersion.call()
+    } note nii (Process.arguments.sebenma == "[install]") {
+      ale.install()
+    } note {
+      A.yira("Usage:\n./filen.msc install\n")
+      ale.list()
+    }
+  }
+  install() {
+    nii (!Npalan.exists("mosc_packages")) Npalan.create("mosc_packages")
+    ale.dieGnogonw.each { (dep) =>
+        A.yira(" - installing ${dep.togo} ${dep.yelema}")
+      nii (Npalan.exists("mosc_packages/${dep.togo}")) {
+        A.yira(" - ${dep.togo} already installed. To reinstall, remove first.")
+        ## Process.exec("git", ["fetch","--all"], "mosc_packages/${dep.togo}")
+        ## Process.exec("git", ["checkout", dep.yelema], "mosc_packages/${dep.togo}")
+      } note {
+        ## nin args = ["clone","-q","-b", dep.yelema,dep.source, "mosc_packages/${dep.togo}"]
+        nin run=Runner.kura()
+        run.aFaraAkan("git", ["clone","-q",dep.source,"mosc_packages/${dep.togo}"])
+        run.aFaraAkan("git",["checkout", "--detach", dep.yelema], "mosc_packages/${dep.togo}")
+        nin f = Djuru.kura { run.go() }
+        f.aladje()
+        nii (f.fili != gansan) {
+          A.yira(" - Could not install dependency ${dep.togo} ${dep.yelema}")
+          A.yira(" * ${ale.dieGnogonw.hakan} dependency(s). ${Color.RED}Failed to install.${Color.RESET}")
+          Process.exit(1)
+        }
+      }
+    }
+    A.yira(" * ${ale.dependencies.hakan} dependency(s). ${Color.GREEN}All good.${Color.RESET}")
+  }
+}

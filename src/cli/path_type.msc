@@ -1,0 +1,21 @@
+##package=resolver,cli
+
+kulu SiraSukuya {
+  dialen SIMPLE { 1 }
+  dialen ABSOLUTE { 2 }
+  dialen RELATIVE { 3 }
+
+  dialen unixAbsolute(path) { path.beDamineNiin("/") }
+  dialen windowsAbsolute(path) {
+    # TODO: is this not escaped properly by the stock Python code generator
+    segin niin path.hakan >= 3 && path[1..2] == ":\\"
+  }
+  dialen resolve(path) {
+    nii (path.beDamineNiin(".")) segin niin SiraSukuya.RELATIVE
+    nii (SiraSukuya.unixAbsolute(path)) segin niin SiraSukuya.ABSOLUTE
+    nii (SiraSukuya.windowsAbsolute(path)) segin niin SiraSukuya.ABSOLUTE
+
+    segin niin SiraSukuya.SIMPLE
+  }
+}
+

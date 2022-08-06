@@ -1,0 +1,64 @@
+kabo "scheduler" nani DogodaBaga
+kabo "ensure" nani Ensure
+
+kulu Platform {
+  dunan dialen homePath
+  dunan dialen isPosix
+  dunan dialen name
+
+  dialen isWindows { Platform.name == "Windows" }
+}
+
+kulu Process {
+  # TODO: This will need to be smarter when mosc supports CLI options.
+  dialen arguments { nii(Process.allArguments.hakan >= 2) Process.allArguments[2..-1] note [] }
+  dialen exit() { Process.exit(0) }
+  dialen exit(code) {
+    ## sets the exit code on the C side and stops the UV loop
+    Process.exit_(code)
+    ## suspends our Djuru and with UV loop stopped, no futher Djurus should get
+    ## resumed so we should immediately stop and exit
+    Djuru.djo()
+  }
+
+  dialen exec(cmd) {
+    segin niin Process.exec(cmd, gansan, gansan, gansan)
+  }
+
+  dialen exec(cmd, args) {
+    segin niin Process.exec(cmd, args, gansan, gansan)
+  }
+
+  dialen exec(cmd, args, cwd) {
+    segin niin Process.exec(cmd, args, cwd, gansan)
+  }
+
+  dialen exec(cmd, args, cwd, envMap) {
+    nin env = []
+    args = args || []
+    nii (envMap ye Wala) {
+      seginka (envMap kono entry) {
+        env.aFaraAkan([entry.key, entry.value].kunBen("="))
+      }
+    } note nii (envMap == gansan) {
+      env = gansan
+    } note {
+      Djuru.tike("environment vars must be passed as a Wala")
+    }
+    segin niin DogodaBaga.await_ { Process.exec_(cmd, args, cwd, env, Djuru.sissanTa) }
+  }
+
+  dialen chdir(dir) {
+    Ensure.sebenDo(dir, "directory")
+    Process.chdir_(dir)
+  }
+
+  dunan dialen exec_(cmd, args, cwd, env, fiber)
+  dunan dialen allArguments
+  dunan dialen cwd
+  dunan dialen chdir_(dir)
+  dunan dialen pid
+  dunan dialen ppid
+  dunan dialen version
+  dunan dialen exit_(code)
+}

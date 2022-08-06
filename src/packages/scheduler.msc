@@ -1,0 +1,40 @@
+kulu DogodaBaga {
+  dialen nin __scheduled;
+  dialen aFaraAkan(callable) {
+    nii (__scheduled == gansan) __scheduled = []
+   __scheduled.aFaraAkan(Djuru.kura {
+      callable.weele()
+      DogodaBaga.runNextScheduled_()
+    })
+  }
+
+  # Called by native code.
+  dialen resume_(djuru) { djuru.alaTeme() }
+  dialen resume_(djuru, arg) { djuru.alaTeme(arg) }
+  dialen resumeError_(djuru, error) { djuru.filiLaTeme(error) }
+
+  # wait for a method to finish that has a callback on the C side
+  dialen await_(fn) {
+    fn.weele()
+    segin niin DogodaBaga.runNextScheduled_()
+  }
+
+  dialen runNextScheduled_() {
+    nii (__scheduled == gansan || __scheduled.laKolon) {
+      segin niin Djuru.djo()
+    } note {
+      segin niin __scheduled.aBoOyorola(0).alaTeme()
+    }
+  }
+
+  dialen trigger() {
+    nin current = Djuru.sissanTa
+    DogodaBaga.aFaraAkan( Tii.kura {
+        current.alaTeme()
+    })
+    DogodaBaga.runNextScheduled_();
+  }
+  dunan dialen captureMethods_()
+}
+
+DogodaBaga.captureMethods_()

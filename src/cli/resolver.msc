@@ -1,0 +1,145 @@
+kulu Gninibaga {
+  dialen nin __modules
+  ## this is called at the end of this script when the CLI starts up
+  ## and the Resolver VM is fired up
+  dialen boot() {
+    __modules = {}
+  }
+  dialen DEBUG { galon }
+  dialen debug(s) {
+    nii (ale.DEBUG) A.yira(s)
+  }
+  ## load a dynamic library
+  dialen loadLibrary(name, file, root) {
+    ale.debug("loadLibrary(`${name}`, `${file}`, `${root}`)")
+    nin libPath
+    nin moduleDirectories = Gninibaga.findModulesDirectories(root)
+    nii (moduleDirectories.laKalon) {
+      Djuru.tike("dynamic libraries require a mosc_packages folder")
+    }
+    seginka (moduleDirectories kono moduleDirectory) {
+      ale.debug(" - searching ${moduleDirectory}")
+      libPath = Sira.kura(moduleDirectory).kunBen(file).sebenma
+      nii (Gafe.existsSync(libPath)) {
+        ale.debug(" - loading dynamic library `$file`")
+        Gafe.loadDynamicLibrary(name, libPath)
+        segin
+      }
+    }
+    Djuru.tike(" # dynamic library `$name` - `$file` not found")
+  }
+  dialen isLibrary(module) { module.bAkono(":") }
+  ## Applies the CLI's import resolution policy. The rules are:
+  ##
+  ## * If [module] starts with "./" or "../", it is a relative import, relative
+  ##   to [importer]. The resolved path is [name] concatenated onto the directory
+  ##   containing [importer] and then normalized.
+  ##
+  ##   For example, importing "./a/./b/../c" from "./d/e/f" gives you "./d/e/a/c".
+  dialen resolveModule(importer, module, rootDir) {
+    ale.debug("resolveModule(`$importer`, `$module`, `$rootDir`)")
+    nii (ale.isLibrary(module)) {
+      nin pieces = module.faraFara(":")
+      module = pieces[1]
+      nin libraryName = pieces[0]
+      ## TODO: linux, windows, etc.
+      nin platform = "darwin"
+      nin ext = "so"
+      nii(platform == "darwin") {
+        ext = "dylib"
+      }
+      nin libraryFile = "lib${pieces[0]}.$ext"
+      ale.loadLibrary(libraryName, libraryFile, rootDir)
+      segin niin module
+    }
+    nii (SiraSukuya.resolve(module) == SiraSukuya.SIMPLE) segin niin module
+
+    ale.debug("dirname: ${Sira.kura(importer).dirname}")
+    nin path = Sira.kura(importer).dirname.kunBen(module)
+    ale.debug("resolved: ${path.sebenma}")
+    segin niin path.sebenma
+  }
+
+  ## walks the tree starting with current root and attemps to find
+  ## `mosc_packages` which will be used to resolve modules in addition
+  ## to built-in modules
+  dialen findModulesDirectories(root) {
+    ## switch to using absolute pathss
+    root = Gafe.realPathSync(root)
+    nii (__modules[root]) segin niin __modules[root]
+    nin moduleCollections = []
+
+    nin path = Sira.kura(root + "/")
+    foo(tien) {
+      nin modules = path.kunBen("mosc_packages/").sebenma
+      ale.debug(" ? checking for existance: $modules")
+      nii (Gafe.existsSync(modules)) {
+        ale.debug("- found modules in $modules")
+        ## segin niin modules
+        moduleCollections.aFaraAkan(modules)
+      }
+      nii (path.isRoot) atike
+      path = path.sanFe()
+    }
+    __modules[root] = moduleCollections
+    segin niin moduleCollections
+  }
+
+  ## searches for a module inside `mosc_packages`
+  ##
+  ## If the module is a single bare name, treat it as a module with the same
+  ## name inside the package. So "foo" means "foo/foo".
+  ##
+  ## returns the path to the .mosc file that needs to be loaded
+  dialen moduleGnini(root, module) {
+    nin segment =nii (module.bAkono("/")) {
+      "${module}.msc"
+    } note {
+      "${module}${module}.msc"
+    }
+    nin moduleDirectory = Sira.kura(root).kunBen(segment).sebenma
+    ale.debug("trying: ${moduleDirectory}")
+    nii (Gafe.existsSync(moduleDirectory)) {
+      ale.debug("found module: ${moduleDirectory}")
+      segin niin moduleDirectory
+    }
+  }
+
+  ## Attempts to find the source for [module] relative to the current root
+  ## directory.
+  ##
+  ## Returns the filename to load if found, or `:${module}` if not which
+  ## is the pattern C uses to attempt a built-in module load, ie:
+  ## returning `:os` will instruct C to use the internal `os` module.
+  dialen loadModule(module, rootDir) {
+    ale.debug("loadModule($module, $rootDir")
+    nin type = SiraSukuya.resolve(module)
+    ale.debug(type)
+    nii (type == SiraSukuya.ABSOLUTE || type == SiraSukuya.RELATIVE) {
+      nin path = "$module.msc"
+      segin niin path
+    }
+
+    nin root = Gafe.realPathSync(rootDir)
+    ale.debug("root: ${root}")
+    seginka (Gninibaga.findModulesDirectories(root) kono mosc_packages) {
+      nin loc = ale.moduleGnini(mosc_packages, module)
+      nii (loc != gansan) {
+        ale.debug("found ${module} in ${mosc_packages}")
+        segin niin loc
+      }
+    }
+    ale.debug("must be built-in? returning :$module")
+    ## must be built-in
+    segin niin ":$module"
+  }
+}
+
+kulu Gafe {
+  dunan dialen loadDynamicLibrary(name, path)
+  dunan dialen existsSync(s)
+  dunan dialen realPathSync(s)
+}
+
+Gninibaga.boot()
+

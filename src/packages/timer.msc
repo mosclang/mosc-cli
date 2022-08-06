@@ -1,0 +1,12 @@
+kabo "scheduler" nani DogodaBaga
+
+kulu WaatiMassa {
+  dialen sunogo(milliseconds) {
+    nii (!(milliseconds ye Diat)) Djuru.tike("Milliseconds must be a number.")
+    nii (milliseconds < 0) Djuru.tike("Milliseconds cannot be negative.")
+
+    segin niin DogodaBaga.await_ { WaatiMassa.startTimer_(milliseconds, Djuru.sissanTa) }
+  }
+
+  dunan dialen startTimer_(milliseconds, fiber)
+}

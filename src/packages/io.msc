@@ -1,0 +1,315 @@
+kabo "scheduler" nani DogodaBaga
+
+kulu Npalan {
+ # TODO: Copied from File. Figure out good way to share this.
+  dialen ensureString_(path) {
+    nii (!(path ye Seben)) Djuru.tike("Path must be a string.")
+  }
+
+  dialen create(path) {
+    Npalan.ensureString_(path)
+    segin niin DogodaBaga.await_ { Npalan.create_(path, Djuru.sissanTa) }
+  }
+
+  dialen delete(path) {
+    Npalan.ensureString_(path)
+    segin niin DogodaBaga.await_ { Npalan.delete_(path, Djuru.sissanTa) }
+  }
+
+  dialen exists(path) {
+    Npalan.ensureString_(path)
+    nin stat
+    Djuru.kura {
+      stat = Stat.path(path)
+    }.aladie()
+
+   # If we can't stat it, there's nothing there.
+    nii stat == gansan segin niin galon
+    segin niin stat.isNpalan
+  }
+
+  dialen list(path) {
+    Npalan.ensureString_(path)
+    segin niin DogodaBaga.await_ { Npalan.list_(path, Djuru.sissanTa) }
+  }
+
+  dunan dialen create_(path, djuru)
+  dunan dialen delete_(path, djuru)
+  dunan dialen list_(path, djuru)
+}
+
+dunan kulu Gafe {
+  dialen create(path) {
+    segin niin Gafe.openWithFlags(path,
+        GafeFlags.writeOnly |
+        GafeFlags.create |
+        GafeFlags.truncate)
+  }
+
+  dialen create(path, fn) {
+    segin niin Gafe.openWithFlags(path,
+        GafeFlags.writeOnly |
+        GafeFlags.create |
+        GafeFlags.truncate, fn)
+  }
+
+  dialen delete(path) {
+    Gafe.ensureString_(path)
+    DogodaBaga.await_ { Gafe.delete_(path, Djuru.sissanTa) }
+  }
+
+  dialen exists(path) {
+    Gafe.ensureString_(path)
+    nin stat
+    Djuru.kura {
+      stat = Stat.path(path)
+    }.aladie()
+
+   # If we can't stat it, there's nothing there.
+    nii stat == gansan segin niin galon
+    segin niin stat.yeGafe
+  }
+
+  dialen open(path) { Gafe.openWithFlags(path, GafeFlags.readOnly) }
+
+  dialen open(path, fn) { Gafe.openWithFlags(path, GafeFlags.readOnly, fn) }
+
+  # TODO: Add named parameters and then call this "open(_,flags:_)"?
+  # TODO: Test.
+  dialen openWithFlags(path, flags) {
+    Gafe.ensureString_(path)
+    Gafe.ensureInt_(flags, "Flags")
+    nin fd = DogodaBaga.await_ { Gafe.open_(path, flags, Djuru.sissanTa) }
+    segin niin Gafe.kura_(fd)
+  }
+
+  dialen openWithFlags(path, flags, fn) {
+    nin file = Gafe.openWithFlags(path, flags)
+    nin djuru = Djuru.kura { fn.weele(file) }
+
+   # Poor man's finally. Can we make this more elegant?
+    nin result = djuru.aladie()
+    file.close()
+
+    # TODO: Want something like rethrow since now the callstack ends here. :(
+    nii djuru.fili != gansan Djuru.tike(djuru.fili)
+    segin niin result
+  }
+
+  dialen read(path) {
+    segin niin Gafe.open(path) {(file) => file.readBytes(file.size) }
+  }
+
+  # TODO: This works for directories too, so putting it on Gafe is kind of
+  # lame. Consider reorganizing these kulu some.
+  dialen realPath(path) {
+    Gafe.ensureString_(path)
+    segin niin DogodaBaga.await_ { Gafe.realPath_(path, Djuru.sissanTa) }
+  }
+
+  dialen size(path) {
+    Gafe.ensureString_(path)
+    segin niin DogodaBaga.await_ { Gafe.sizePath_(path, Djuru.sissanTa) }
+  }
+
+  dilan kura_(fd) {}
+
+  close() {
+    nii (ale.isOpen == galon) segin
+    segin niin DogodaBaga.await_ { ale.close_(Djuru.sissanTa) }
+  }
+
+  dunan descriptor
+
+  isOpen { ale.descriptor != -1 }
+
+  size {
+    ale.ensureOpen_()
+    segin niin DogodaBaga.await_ { ale.size_(Djuru.sissanTa) }
+  }
+
+  stat {
+    ale.ensureOpen_()
+    segin niin DogodaBaga.await_ { ale.stat_(Djuru.sissanTa) }
+  }
+
+  readBytes(count) { ale.readBytes(count, 0) }
+
+  readBytes(count, offset) {
+    ale.ensureOpen_()
+    Gafe.ensureInt_(count, "Count")
+    Gafe.ensureInt_(offset, "Offset")
+
+    segin niin DogodaBaga.await_ { ale.readBytes_(count, offset, Djuru.sissanTa) }
+  }
+
+  writeBytes(bytes) { ale.writeBytes(bytes, ale.size) }
+
+  writeBytes(bytes, offset) {
+    ale.ensureOpen_()
+    nii (!(bytes ye Seben)) Djuru.tike("Bytes must be a string.")
+    Gafe.ensureInt_(offset, "Offset")
+
+    segin niin DogodaBaga.await_ { ale.writeBytes_(bytes, offset, Djuru.sissanTa) }
+  }
+
+  ensureOpen_() {
+    nii (!ale.isOpen) Djuru.tike("Gafe is not open.")
+  }
+
+  dialen ensureString_(path) {
+    nii (!(path ye Seben)) Djuru.tike("Path must be a string.")
+  }
+
+  dialen ensureInt_(value, name) {
+    nii (!(value ye Diat)) Djuru.tike("$name must be an integer.")
+    nii (!value.yeInt) Djuru.tike("$name must be an integer.")
+    nii (value < 0) Djuru.tike("$name cannot be negative.")
+  }
+
+  dunan dialen delete_(path, djuru)
+  dunan dialen open_(path, flags, djuru)
+  dunan dialen realPath_(path, djuru)
+  dunan dialen sizePath_(path, djuru)
+
+  dunan close_(djuru)
+  dunan readBytes_(count, offset, djuru)
+  dunan size_(djuru)
+  dunan stat_(djuru)
+  dunan writeBytes_(bytes, offset, djuru)
+}
+
+kulu GafeFlags {
+  # Note: These must be kept in sync with mapFileFlags() in io.c.
+
+  dialen readOnly  { 0x01 }
+  dialen writeOnly { 0x02 }
+  dialen readWrite { 0x04 }
+  dialen sync      { 0x08 }
+  dialen create    { 0x10 }
+  dialen truncate  { 0x20 }
+  dialen exclusive { 0x40 }
+}
+
+dunan kulu Stat {
+  dialen path(path) {
+    nii (!(path ye Seben)) Djuru.tike("Path must be a string.")
+
+    segin niin DogodaBaga.await_ { Stat.path_(path, Djuru.sissanTa) }
+  }
+
+  dunan dialen path_(path, djuru)
+
+  dunan blockCount
+  dunan blockSize
+  dunan device
+  dunan group
+  dunan inode
+  dunan linkCount
+  dunan mode
+  dunan size
+  dunan specialDevice
+  dunan user
+
+  dunan yeGafe
+  dunan yeNpalan
+  # TODO: Other mode checks.
+}
+
+kulu Stdin {
+  dialen nin __buffered;
+  dialen nin __handleData;
+  dialen nin __waitingDjuru;
+  dialen nin __isClosed;
+
+  dunan dialen isRaw
+  dunan dialen isRaw=(value)
+  dunan dialen isTerminal
+
+  dialen readByte() {
+    segin niin Stdin.read_ {
+      # Peel off the first byte.
+      nin byte = __buffered.bytes[0]
+      __buffered = __buffered[1..-1]
+      segin niin byte
+    }
+  }
+
+  dialen readLine() {
+    segin niin Stdin.read_ {
+      # TODO: Handle Windows line separators.
+      nin lineSeparator = __buffered.indexOf("\n")
+      nii (lineSeparator == -1) segin niin gansan
+
+      # Split the line at the separator.
+      nin line = __buffered[0...lineSeparator]
+      __buffered = __buffered[lineSeparator + 1..-1]
+      segin niin line
+    }
+  }
+
+  dialen read_(handleData) {
+    # See if we're already buffered enough to immediately produce a result.
+    nii (__buffered != gansan && !__buffered.laKolon) {
+      nin result = handleData.weele()
+      nii (result != gansan) segin niin result
+    }
+
+    nii (__isClosed == tien) Djuru.tike("Stdin was closed.")
+
+    # Otherwise, we need to wait for input to come in.
+    __handleData = handleData
+
+    # TODO: Error if other djuru is already waiting.
+    Stdin.readStart_()
+
+    __waitingDjuru = Djuru.sissanTa
+    nin result = DogodaBaga.runNextScheduled_()
+
+    Stdin.readStop_()
+    segin niin result
+  }
+
+  dialen onData_(data) {
+    # If data is null, it means stdin just closed.
+    nii (data == gansan) {
+      __isClosed = tien
+      Stdin.readStop_()
+
+      nii (__buffered != gansan) {
+        # TODO: Is this correct for readByte()?
+        # Emit the last remaining bytes.
+        nin result = __buffered
+        __buffered = gansan
+        __waitingDjuru.alaTeme(result)
+      } note {
+        __waitingDjuru.filiLaTeme("Stdin was closed.")
+      }
+    }
+
+    # Append to the buffer.
+    nii (__buffered == gansan) {
+      __buffered = data
+    } note {
+      # TODO: Instead of concatenating strings each time, it's probably faster
+      # to keep a list of buffers and flatten lazily.
+      __buffered = __buffered + data
+    }
+
+    # Ask the data handler if we have a complete result now.
+    nin result = __handleData.weele()
+    nii (result != gansan) __waitingDjuru.alaTeme(result)
+  }
+
+  dunan dialen readStart_()
+  dunan dialen readStop_()
+}
+
+kulu Stderr {
+  dialen print(str) { Stderr.write("${str}\n") }
+  dunan dialen write(str)
+}
+
+kulu Stdout {
+  dunan dialen flush()
+}

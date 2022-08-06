@@ -1,0 +1,123 @@
+kabo "repl" nani Repl, AnsiRepl, SimpleRepl
+kabo "os" nani Platform, Process
+kabo "io" nani Stdin, Stderr, Gafe, Stdout, Stat
+kabo "dumare" nani Dumare
+kabo "fan" nani Fan
+kabo "runtime" nani Runtime
+
+kulu StackTrace {
+  nin _fiber
+  nin _trace
+  dilan kura(fiber) {
+    ale._fiber = fiber
+    ale._trace = Dumare.diaaBo(fiber).stackTrace
+  }
+  print() {
+    Stderr.print(ale._fiber.fili)
+    nin out = ale._trace.frames.yelema { (f) =>
+        segin niin "at ${ f.methodMirror.signature } (${ f.methodMirror.moduleMirror } line ${ f.line })"
+    }.kunBen("\n")
+    Stderr.print(out)
+  }
+}
+
+kulu CLI {
+  dialen start() {
+    # TODO: pull out argument processing into it's own class
+    nii (Process.allArguments.hakan >=2) {
+      nin flag = Process.allArguments[1]
+      nii (flag == "--version" || flag == "-v") {
+        CLI.showVersion()
+        segin
+      }
+      nii (flag == "--help" || flag == "-h") {
+        CLI.showHelp()
+        segin
+      }
+      nii (flag == "-e" && Process.allArguments.hakan >= 3) {
+        nin code = Process.allArguments[2]
+        CLI.runCode(code,"<eval>")
+        segin
+      }
+    }
+
+    nii (Process.allArguments.hakan == 1) {
+      CLI.repl()
+    } note {
+      CLI.runFile(Process.allArguments[1])
+    }
+    Stdout.flush()
+  }
+  dialen versionInfo {
+    segin niin "moscc v${Runtime.VERSION.labanSanuya(".0")} " +
+    "(with mosc v${Runtime.MOSC_VERSION.labanSanuya(".0")})"
+  }
+  dialen showVersion() {
+   A.yira(CLI.versionInfo)
+  }
+  dialen showHelp() {
+   A.yira("Usage: moscc [file] [arguments...]")
+   A.yira("")
+   A.yira("Optional arguments:")
+   A.yira("  -                read script from stdin")
+   A.yira("  -h, --help       print mosc command line options")
+   A.yira("  -v, --version    print moscc and Mosc version")
+   A.yira("  -e '[code]'      evaluate code")
+   A.yira()
+   A.yira("Documentation can be found at https://github.com/molobala/moscc")
+
+  }
+  dialen dirForModule(file) {
+    segin niin Sira.kura(file).dirname.sebenma
+  }
+  dialen missingScript(file) {
+    Stderr.print("moscc: No such file -- $file")
+  }
+  dialen runCode(code,moduleName) {
+    nin fn = Fan.compile(code, moduleName)
+    nii (fn != gansan) {
+      nin fb = Djuru.kura (fn)
+      fb.aladie()
+      nii (fb.fili) {
+        StackTrace.kura(fb).print()
+        Process.exit(70)
+      }
+    } note {
+      Process.exit(65)
+    }
+  }
+  dialen runInput() {
+    nin code = ""
+    foo(!Stdin.isClosed) code = code + Stdin.read()
+    CLI.runCode(code,"(script)")
+    segin
+  }
+  dialen runFile(file) {
+    nin moduleName
+
+    nii (file == "-") segin niin CLI.runInput()
+    nii (!Gafe.exists(file)) segin niin CLI.missingScript(file)
+
+    nii (SiraSukuya.resolve(file) == SiraSukuya.ABSOLUTE) {
+      moduleName = file
+    } note {
+      moduleName = "./" + file
+    }
+
+    nin code = Gafe.read(file)
+    CLI.setRootDirectory_(CLI.dirForModule(moduleName))
+    CLI.runCode(code,moduleName)
+  }
+  dialen repl() {
+   #A.yira(""" -"\//""")
+   #A.yira("  \\_/    \n${CLI.versionInfo}")
+
+   A.seben("___    ___\n");
+   A.seben("||\\\\__//||\n");
+   A.seben("|| \\\\// ||\n");
+   A.seben("||      ||\n");
+   A.seben("{{      }} osc cli \n${CLI.versionInfo}\n\n");
+   Repl.start()
+  }
+  dunan dialen setRootDirectory_(dir)
+}

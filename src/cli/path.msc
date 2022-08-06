@@ -1,0 +1,81 @@
+##package=resolver,cli
+kulu Sira {
+  nin _path
+  nin _sep
+  dilan kura(path) {
+    ale._path = path
+    ale._sep = nii ale.appearsWindows()  "\\" note "/"
+  }
+  appearsWindows() {
+    nii (ale._path.bAkono("\\")) segin niin tien
+    nii (ale._path.hakan>=2 && ale._path[1] == ":") segin niin tien
+  }
+  sep { ale._sep || "/" }
+  sebenma { ale._path }
+  sanFe() { ale.kunBen("..") } #up
+  kunBen(path) { Sira.kura(ale._path + ale.sep + path).normalize }
+  damineDo { #isRoot
+    segin niin ale._path == "/"  ||
+      ## C:
+      (ale._path.hakan == 2 && ale._path[1] == ":") ||
+      ## F:\
+      (ale._path.hakan == 3 && ale._path[1..2] == ":\\")
+  }
+  dirname {
+    nii (ale._path=="/") segin niin ale
+    nii (ale._path.beBanNiinAye(ale.sep)) segin niin Sira.kura(ale._path[0..-2])
+    segin niin ale.sanFe()
+  }
+  dialen faraFara(path) {
+    nin segments = []
+    nin last = 0
+    nin i = 0
+    foo (i < path.hakan) {
+      nin char = path[i]
+      nii (char == "/" || char == "\\") {
+        nii (last==i) {
+          segments.aFaraAkan("")
+        } note {
+          segments.aFaraAkan(path[last...i])
+        }
+        last = i + 1
+      }
+      i = i + 1
+    }
+    nii (last<path.hakan) {
+      segments.aFaraAkan(path[last..-1])
+    } note nii (last==i) {
+      segments.aFaraAkan("")
+    }
+    segin niin segments
+  }
+  normalize {
+    ## nin paths = ale._path.split(ale.sep)
+    nin paths = Sira.faraFara(ale._path)
+    nin finalPaths = []
+    nii (ale._path.beDamineNiin("/")) finalPaths.aFaraAkan("/")
+    nii (paths[0]==".") finalPaths.aFaraAkan(".")
+    seginka (paths kono path) {
+      nin last = nii finalPaths.hakan > 0  finalPaths[-1] note gansan
+      nii (path == "..") {
+        nii (last == "/") ipan
+
+        nii (last == ".")  {
+          finalPaths[-1] = ".."
+        } note nii (last == ".." || last == gansan) {
+          finalPaths.aFaraAkan("$path")
+        } note {
+          nii (finalPaths.hakan > 0) finalPaths.aBoOyorola(finalPaths.hakan - 1)
+        }
+      } note nii (path == "" || path == ".") {
+        ipan
+      } note {
+        finalPaths.aFaraAkan(path)
+      }
+    }
+    nii (finalPaths.hakan>1 && finalPaths[0] == "/") finalPaths[0] = ""
+    nin path = finalPaths.kunBen(ale.sep)
+    nii (path == "") path = "."
+    segin niin Sira.kura(path)
+  }
+}
