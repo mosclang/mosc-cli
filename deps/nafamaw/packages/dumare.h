@@ -8,7 +8,7 @@
 #include "../api/msc.h"
 #include "../common/common.h"
 
-#ifdef MSC_OPT_DUMARE
+
 MSCExternMethodFn MSCMirrorBindExternMethod(MVM* vm,
                                                 const char* className,
                                                 bool isStatic,
@@ -24,6 +24,6 @@ void mirrorFiberMirrorStackFramesCount(MVM *vm);
 void mirrorModuleMirrorFromName_(MVM *vm);
 void mirrorModuleMirrorName_(MVM *vm);
 void mirrorObjectMirrorCanInvoke(MVM *vm);
-#endif
+
 
 #endif //MOSC_DUMARE_H

@@ -4,7 +4,7 @@
 
 #include "dumare.h"
 
-#if MSC_OPT_DUMARE
+
 
 #include <string.h>
 
@@ -258,4 +258,3 @@ MSCExternMethodFn MSCMirrorBindExternMethod(MVM *vm,
     return NULL;
 }
 
-#endif

@@ -302,7 +302,7 @@ kulu JSON {
     segin niin JSON.encode(value, JSONOptions.abortOnError)
   }
 
-  dialen stringniiy(value) {
+  dialen stringify(value) {
     segin niin JSON.encode(value)
   }
 
