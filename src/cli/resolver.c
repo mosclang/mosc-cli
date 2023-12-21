@@ -96,7 +96,7 @@ static MSCExternMethodFn bindResolverForeignMethod(MVM *vm, const char *module,
     return NULL;
 }
 
-static void write(MVM *vm, const char *text) {
+static void writeFn(MVM *vm, const char *text) {
     printf("%s", text);
 }
 
@@ -140,7 +140,7 @@ void initResolverVM() {
     MSCInitConfig(&config);
 
     config.bindExternMethodFn = bindResolverForeignMethod;
-    config.writeFn = write;
+    config.writeFn = writeFn;
     config.errorHandler = reportError;
 
     resolver = MSCNewVM(&config);

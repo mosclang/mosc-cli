@@ -247,7 +247,7 @@ static MSCExternClassMethods bindForeignClass(
     return methods;
 }
 
-static void write(MVM* vm, const char* text)
+static void writeFn(MVM* vm, const char* text)
 {
     printf("%s", text);
 }
@@ -281,7 +281,7 @@ static void initVM()
     config.bindExternClassFn = bindForeignClass;
     config.resolveModuleFn = resolveModule;
     config.loadModuleFn = loadModule;
-    config.writeFn = write;
+    config.writeFn = writeFn;
     config.errorHandler = reportError;
 
     // Since we're running in a standalone process, be generous with memory.

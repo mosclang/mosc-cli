@@ -1,12 +1,16 @@
 cmake_minimum_required(VERSION 3.8)
 
+cmake_policy(SET CMP0057 NEW) # Enable IN_LIST operator
+cmake_policy(SET CMP0064 NEW) # Support if (TEST) operator
+
 IF (POLICY CMP0042)
     CMAKE_POLICY(SET CMP0042 NEW)
 ENDIF ()
 
 project(moscc)
 
-set(CMAKE_C_STANDARD 99)
+#set(CMAKE_CXX_STANDARD 99)
+#set(CMAKE_C_STANDARD 99)
 
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -29,6 +33,7 @@ set(MSC_INCLUDE_DIRS)
 set(MSC_FLAGS)
 set(MSC_DEPS)
 set(MSC_DEFS)
+set(LINK_OPTIONS)
 
 # Utility function which will only add compiler flags if supported
 INCLUDE(CheckCCompilerFlag)
@@ -99,7 +104,7 @@ file(GLOB SOURCE_FILES_CH deps/libuv/src/*.h)
 
 #LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_H})
 #LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C})
-LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_H} ${SOURCE_FILES_C} ${SOURCE_FILES_CH})
+LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C})
 
 LIST(APPEND MSC_INCLUDE_DIRS deps/libuv/include deps/libuv/src)
 
@@ -132,13 +137,11 @@ ELSE ()
             )
     LIST(APPEND MSC_SOURCE_FILES
             deps/libuv/src/unix/async.c
-            deps/libuv/src/unix/atomic-ops.h
             deps/libuv/src/unix/core.c
             deps/libuv/src/unix/dl.c
             deps/libuv/src/unix/fs.c
             deps/libuv/src/unix/getaddrinfo.c
             deps/libuv/src/unix/getnameinfo.c
-            deps/libuv/src/unix/internal.h
             deps/libuv/src/unix/loop-watcher.c
             deps/libuv/src/unix/loop.c
             deps/libuv/src/unix/pipe.c
@@ -146,21 +149,18 @@ ELSE ()
             deps/libuv/src/unix/process.c
             deps/libuv/src/unix/random-devurandom.c
             deps/libuv/src/unix/signal.c
-            deps/libuv/src/unix/spinlock.h
             deps/libuv/src/unix/stream.c
             deps/libuv/src/unix/tcp.c
             deps/libuv/src/unix/thread.c
             deps/libuv/src/unix/tty.c
             deps/libuv/src/unix/udp.c)
 
-    LIST(APPEND MSC_INCLUDE_DIRS
-            src/unix
-            )
+    LIST(APPEND MSC_INCLUDE_DIRS deps/libuv/src/unix)
     FIND_PACKAGE(Threads REQUIRED)
-    LIST(APPEND MSC_DEPS
-            ${CMAKE_THREAD_LIBS_INIT}
-            dl)
+    LIST(APPEND MSC_DEPS ${CMAKE_THREAD_LIBS_INIT})
     IF (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        LIST(APPEND MSC_DEPS
+                dl)
         LIST(APPEND MSC_DEFS
                 _DARWIN_USE_64_BIT_INODE=1
                 _DARWIN_UNLIMITED_SELECT=1
@@ -174,20 +174,20 @@ ELSE ()
                 deps/libuv/src/unix/proctitle.c
                 deps/libuv/src/unix/random-getentropy.c)
     ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        LIST(APPEND MSC_DEFS _GNU_SOURCE)
-        LIST(APPEND MSC_DEPS pthread dl m)
+        LIST(APPEND MSC_DEFS _GNU_SOURCE _POSIX_C_SOURCE=200112)
+        LIST(APPEND MSC_DEPS pthread dl m rt)
         LIST(APPEND MSC_SOURCE_FILES
                 deps/libuv/src/unix/linux-core.c
                 deps/libuv/src/unix/linux-inotify.c
                 deps/libuv/src/unix/linux-syscalls.c
-                deps/libuv/src/unix/linux-syscalls.h
                 deps/libuv/src/unix/procfs-exepath.c
                 deps/libuv/src/unix/proctitle.c
                 deps/libuv/src/unix/random-getrandom.c
                 deps/libuv/src/unix/random-sysctl-linux.c
-                deps/libuv/src/unix/sysinfo-loadavg.c)
+                deps/libuv/src/unix/epoll.c
+                )
     ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-        LIST(APPEND MSC_DEPS pthread dl m)
+        LIST(APPEND MSC_DEPS pthread dl m rt)
         LIST(APPEND MSC_SOURCE_FILES
                 deps/libuv/src/unix/bsd-ifaddrs.c
                 deps/libuv/src/unix/bsd-proctitle.c
@@ -200,9 +200,12 @@ ENDIF ()
 
 ADD_EXECUTABLE(moscc ${MSC_SOURCE_FILES})
 TARGET_COMPILE_DEFINITIONS(moscc PRIVATE ${MSC_DEFS})
-TARGET_INCLUDE_DIRECTORIES(moscc PRIVATE ${MSC_INCLUDE_DIRS})
+TARGET_INCLUDE_DIRECTORIES(moscc PUBLIC ${MSC_INCLUDE_DIRS})
+SET_PROPERTY(TARGET moscc PROPERTY C_STANDARD 99)
+# TARGET_LINK_OPTIONS(moscc PRIVATE ${LINK_OPTIONS})
 TARGET_COMPILE_OPTIONS(moscc PRIVATE ${MSC_FLAGS})
 TARGET_LINK_LIBRARIES(moscc PRIVATE ${MSC_DEPS})
+
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     set_target_properties(moscc PROPERTIES SUFFIX "_d")

@@ -58,23 +58,23 @@ void platformName(MVM* vm)
     MSCEnsureSlots(vm, 1);
 
 #ifdef _WIN32
-    MSCSetSlotString()(vm, 0, "Windows");
+    MSCSetSlotString(vm, 0, "Windows");
 #elif __APPLE__
 #if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
-    MSCSetSlotString()(vm, 0, "iOS");
+    MSCSetSlotString(vm, 0, "iOS");
 #elif TARGET_OS_MAC
     MSCSetSlotString(vm, 0, "OS X");
 #else
-    MSCSetSlotString()(vm, 0, "Unknown");
+    MSCSetSlotString(vm, 0, "Unknown");
 #endif
 #elif __linux__
-    MSCSetSlotString()(vm, 0, "Linux");
+    MSCSetSlotString(vm, 0, "Linux");
   #elif __unix__
-    MSCSetSlotString()(vm, 0, "Unix");
+    MSCSetSlotString(vm, 0, "Unix");
   #elif defined(_POSIX_VERSION)
-    MSCSetSlotString()(vm, 0, "POSIX");
+    MSCSetSlotString(vm, 0, "POSIX");
   #else
-    MSCSetSlotString()(vm, 0, "Unknown");
+    MSCSetSlotString(vm, 0, "Unknown");
 #endif
 }
 
