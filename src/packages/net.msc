@@ -1,0 +1,249 @@
+kabo "scheduler" nani DogodaBaga
+kabo "io" nani Stdin
+kabo "repl" nani Chars
+kabo "json" nani JSON
+
+dunan kulu HttpReqRes {
+  dunan body_(djuru)
+  dunan end_(data, close)
+  dunan endWithNoBody_(close)
+  dunan tryEnd_(data, total,close)
+  dunan cork_(djuru)
+  dunan pause_()
+  dunan resume_()
+  dunan write_(data)
+  dunan writeContinue_()
+  dunan writeHeader_(key, value)
+  dunan writeHeaderInt_(key, value)
+  dunan writeStatus_(value)
+  dunan parameter_(index)
+  dunan header_(index)
+  dunan headerForEach_(fn)
+  dunan query_(name)
+  dunan hasResponded_
+  dunan url_
+  dunan fullUrl_
+  dunan method_
+  dunan methodCaseSensitive_
+  dunan onAbort_(fn)
+  dunan onData_(fn)
+  dunan onWritable_(fn)
+  end_(data) {
+    ale.end_(data, tien)
+  }
+  endWithNoBody_() {
+    ale.endWithNoBody_(tien)
+  }
+  tryEnd_(data, total) {
+    ale.tryEnd_(data, total, tien)
+  }
+
+}
+
+kulu HttpRequest {
+    nin _req;
+    dilan kura(reqRes) {
+        ale._req = reqRes
+    }
+    body {  DogodaBaga.await_ { ale._req.body_(Djuru.sissanTa) } }
+    url { ale._req.url_ }
+    fullUrl { ale._req.fullUrl_ }
+    method { ale._req.method_ }
+    methodCaseSensitive { ale._req.methodCaseSensitive_ }
+    header(name) {
+        segin niin ale._req.header_(name)
+    }
+    headers() {
+        nin ret = []
+        ale._req.headerForEach_ {([name, value]) =>  ret.aFaraAkan({"name": name, "value": value})}
+        segin niin ret;
+    }
+    parameter(index) {
+        segin niin ale._req.parameter_(index)
+    }
+    onData(fn) {
+        ale._req.onData_(fn)
+    }
+    onAbort(fn) {
+        ale._req.onAbort_(fn)
+    }
+
+
+}
+kulu HttpResponse {
+    nin _res;
+    dilan kura(reqRes) {
+       ale._res = reqRes
+    }
+
+    end(data) {
+        ale._res.end_(nii data ye Seben data note JSON.encode(data))
+    }
+    tryEnd(data, total) {
+        segin niin ale._res.tryEnd_(nii data ye Seben data note JSON.encode(data), total)
+    }
+    cork(fn) {
+        nin corked = DogodaBaga.await_{ale._res.cork_(Djuru.sissanTa)}
+        fn.weele(corked)
+    }
+    onWritable(fn) {
+        ale._res.onWritable_(fn)
+    }
+    pause() {
+        ale._res.pause_()
+    }
+    resume() {
+        ale._res.resume_()
+    }
+    write(data) {
+        ale._res.write_(data)
+    }
+    writeContinue() {
+        ale._res.writeContinue_()
+    }
+    writeHeader(name, value) {
+        ale._res.writeHeader_(name, value)
+    }
+    writeHeaderInt(name, value) {
+        ale._res.writeHeaderInt_(name, value)
+    }
+    writeStatus(value) {
+        ale._res.writeStatus_(value)
+    }
+    hasResponded { ale._res.hasResponded_ }
+}
+
+kulu HttpInitOption {
+    nin ssl;
+    dilan kura(ssl) {
+        ale.ssl = ssl;
+    }
+}
+dunan kulu HttpServer_ {
+    dilan kura_(ssl) {
+    }
+    dunan any_(pattern, djuru)
+    dunan get_(pattern, djuru)
+    dunan delete_(pattern, djuru)
+    dunan options_(pattern, djuru)
+    dunan patch_(pattern, djuru)
+    dunan post_(pattern, djuru)
+    dunan put_(pattern, djuru)
+    dunan listen_(port)
+    dunan run_()
+    dunan stop_()
+    onResponse(reqRes, fn) {
+        DogodaBaga.aFaraAkan {
+            fn.weele(reqRes);
+            DogodaBaga.runNextScheduled_()
+        }
+
+    }
+}
+
+kulu HttpServer {
+    nin _running = galon
+    nin _app;
+    dilan kura(options) {
+        ale._app = HttpServer_.kura_(options.ssl)
+    }
+    dilan kura() {
+        ale._app = HttpServer_.kura_(galon)
+    }
+
+    dunan dialen ensureGlobalInit_()
+    running { ale._running }
+
+    any(pattern, fn) {
+         # reqRes = DogodaBaga.await_ { ale.any_(pattern, Djuru.sissanTa) }
+          ale._app.any_(pattern) {(reqRes) =>
+             fn.weele(HttpRequest.kura(reqRes), HttpResponse.kura(reqRes))
+          }
+         segin niin ale;
+    }
+    delete(pattern, fn) {
+         # reqRes = DogodaBaga.await_ { ale.delete_(pattern, Djuru.sissanTa) }
+          ale._app.delete_(pattern) {(reqRes) =>
+             fn.weele(HttpRequest.kura(reqRes), HttpResponse.kura(reqRes))
+          }
+         segin niin ale;
+    }
+    get(pattern, fn) {
+         # reqRes = DogodaBaga.await_ { ale.any_(pattern, Djuru.sissanTa) }
+          ale._app.get_(pattern) {(reqRes) =>
+            A.yira("ReqRes:: $reqRes")
+             fn.weele(HttpRequest.kura(reqRes), HttpResponse.kura(reqRes))
+          }
+         segin niin ale;
+    }
+    patch(pattern, fn) {
+         # reqRes = DogodaBaga.await_ { ale.get_(pattern, Djuru.sissanTa) }
+          ale._app.patch_(pattern) {(reqRes) =>
+             fn.weele(HttpRequest.kura(reqRes), HttpResponse.kura(reqRes))
+          }
+         segin niin ale;
+    }
+    post(pattern, fn) {
+         # reqRes = DogodaBaga.await_ { ale.post_(pattern, Djuru.sissanTa) }
+          ale._app.post_(pattern) {(reqRes) =>
+             fn.weele(HttpRequest.kura(reqRes), HttpResponse.kura(reqRes))
+          }
+         segin niin ale;
+    }
+    put(pattern, fn) {
+         # reqRes = DogodaBaga.await_ { ale.put_(pattern, Djuru.sissanTa) }
+         ale._app.put_(pattern) {(reqRes) =>
+            fn.weele(HttpRequest.kura(reqRes), HttpResponse.kura(reqRes))
+         }
+         segin niin ale;
+    }
+    listen(port, fn) {
+        nii (ale._app.listen_(port)) {
+            fn.weele()
+        }
+        segin niin ale;
+    }
+    close() {
+         nii !ale._running segin;
+         ale._running = galon
+         ale._app.stop_()
+    }
+    handleChar(char) {
+        segin niin tumamin(char) {
+            Chars.ctrlC => tien
+            note => galon
+        }
+    }
+    run() {
+        nii ale._running segin;
+        ale._running = tien;
+        Djuru.kura {
+            ale._app.run_()
+            # Stdin.isRaw = galon
+            # ale.refreshLine_(galon)
+
+            #*foo (tien) {
+              nin byte = Stdin.readByte()
+              nii ale.handleChar(byte) atike
+              # ale.refreshLine(tien)
+            }*#
+            # Repl.start();
+            # here we are out by ctrl + c for instance
+            # free the server
+            # A.yira("Stopping server")
+            # ale._app.stop_();
+        }.aladie();
+
+    }
+
+}
+
+HttpServer.ensureGlobalInit_()
+
+# kabo "net" nani HttpServer, HttpInitOption
+# nin server = HttpServer.kura()
+# nin server = HttpServer.kura().get("/test") { (req, res) => res.end("Hello world") }
+
+# server.listen(3030, Tii.kura { A.yira("Listening on 3030") })
+
+

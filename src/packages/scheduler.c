@@ -47,6 +47,19 @@ void schedulerCaptureMethods(MVM* vm)
     resumeError = MSCMakeCallHandle(vm, "resumeError_(_,_)");
 }
 
+void schedulerResumeAndKeepHandle(MSCHandle* fiber, bool hasArgument)
+{
+    MVM* vm = getVM();
+    MSCEnsureSlots(vm, 2 + (hasArgument ? 1 : 0));
+    MSCSetSlotHandle(vm, 0, schedulerClass);
+    MSCSetSlotHandle(vm, 1, fiber);
+    // MSCReleaseHandle(vm, fiber);
+
+    // If we don't need to wait for an argument to be stored on the stack, resume
+    // it now.
+    if (!hasArgument) resume(resume1);
+}
+
 void schedulerResume(MSCHandle* fiber, bool hasArgument)
 {
     MVM* vm = getVM();

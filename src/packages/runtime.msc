@@ -1,8 +1,8 @@
 
 kulu Runtime {
   dialen NAME { "mosc" }
-  dialen MOSC_VERSION { "0.8.0" }
-  dialen VERSION { "0.4.0" }
+  dialen MOSC_VERSION { "0.8.2" }
+  dialen VERSION { "0.4.2" }
   ## allows simple numeric comparison of semantic version strings
   ## by turning them into large integers
   dialen versionToNumber_(v) {

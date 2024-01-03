@@ -1,0 +1,49 @@
+kabo "net" nani HttpServer, HttpInitOption
+kabo "timer" nani WaatiMassa
+kabo "json" nani JSON
+
+# nin server = HttpServer.kura()
+tii Baa.also(fn) {
+    fn.weele(ale)
+    segin niin ale
+}
+tii Baa.let(fn) {
+    segin niin fn.weele(ale)
+}
+nin list = [{id: 1, name: "Molo"}, {id: 2, name: "Aly"}]
+nin server = HttpServer
+                .kura()
+                .get("/test") { (req, res) =>
+                    A.yira("Handling test endpoint ${req} - ${res}")
+                    WaatiMassa.sunogo(6000)
+                    res.end("Hello world")
+                }
+                .post("/insert") {(req,res) =>
+                    nin body = JSON.decode(req.body)
+                    list.aFaraAkan(body)
+                    res.end(list)
+                }
+                .put("/update/:id") {(req, res) =>
+                    nin id = req.parameter(0)
+                    nin body = JSON.decode(req.body)
+
+                    nin item = list.yoroMin {(e) => "${e["id"]}" == "$id" }.let {(it) =>
+                        A.yira(it.walanNa)
+                        segin niin nii it.laKolon gansan note it.walanNa[0]
+                    }
+                    seginka (body kono entry) {
+                        item[entry.key] = entry.value
+                    }
+                    res.end(item)
+                }.delete("/remove/:id") { req, res =>
+                    nin id = req.parameter(0)
+                    nin item = list.yoroMin {(e) => "${e["id"]}" == "$id" }.let {(it) =>
+                        A.yira(it.walanNa)
+                        segin niin nii it.laKolon gansan note it.walanNa[0]
+                    }
+                    list.aBoye(item)
+                    segin niin item
+                }
+                .listen(3030) { A.yira("Listening on 3030") }
+   server.run()
+

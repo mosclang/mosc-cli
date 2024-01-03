@@ -349,6 +349,7 @@ void fileStat(MVM *vm) {
     int fd = *(int *) MSCGetSlotExtern(vm, 0);
     uv_fs_t *request = createRequest(MSCGetSlotHandle(vm, 1));
     uv_fs_fstat(getLoop(), request, fd, statCallback);
+
 }
 
 void fileSize(MVM *vm) {

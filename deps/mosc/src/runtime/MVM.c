@@ -2,7 +2,7 @@
 // Created by Mahamadou DOUMBIA [OML DSI] on 11/01/2022.
 //
 
-#include <msc.h>
+
 #include "MVM.h"
 #include "../builtin/Primitive.h"
 #include "debuger.h"
@@ -15,6 +15,7 @@
 #if MSC_OPT_KUNFE
 
 #include "../meta/Kunfe.h"
+#include "../memory/Value.h"
 
 #endif
 
@@ -273,11 +274,11 @@ void MSCFreeVM(MVM *vm) {
     // may try to use. Better to tell them about the bug early.
     ASSERT(vm->handles == NULL, "All handles have not been released.");
 
+    MSCSymbolTableClear(vm, &vm->methodNames);
 
     // Free all of the GC objects.
     MSCFreeGC(vm->gc);
 
-    MSCSymbolTableClear(vm, &vm->methodNames);
 }
 
 void MSCCollectGarbage(MVM *vm) {
@@ -305,7 +306,7 @@ void MSCFinalizeExtern(MVM *vm, Extern *externObj) {
 
     ASSERT(method->type == METHOD_EXTERN, "Finalizer should be foreign.");
 
-    MSCFinalizerFn finalizer = (MSCFinalizerFn)method->as.foreign;
+    MSCFinalizerFn finalizer = (MSCFinalizerFn) method->as.foreign;
     finalizer(externObj->data);
 }
 
@@ -544,12 +545,13 @@ static void bindMethod(MVM *vm, int methodType, int symbol,
     } else {
         method.as.closure = AS_CLOSURE(methodValue);
         method.type = METHOD_BLOCK;
-        if (methodType != OP_METHOD_STATIC)
+        if (methodType != OP_METHOD_STATIC) {
             //printf("Will bind class method %s %s: ::: %p:: %p -- %p\n", method.as.closure->fn->debug->name, className,
             //      classObj, classObj->superclass,
             //     core->objectClass);
             // Patch up the bytecode now that we know the superclass.
             MSCBindMethodCode(classObj, method.as.closure->fn);
+        }
     }
 
     MSCBindMethod(classObj, vm, symbol, method);
@@ -667,6 +669,24 @@ static void createExtern(MVM *vm, Djuru *djuru, Value *stack) {
     vm->apiStack = NULL;
 }
 
+static Method *findExtensionMethod(MVM *vm, Class *classObj, int symbol) {
+    if (classObj == NULL) {
+        return NULL;
+    }
+    Method *ret = &classObj->methods.data[symbol];
+    if (ret->type != METHOD_BLOCK) {
+        ret = findExtensionMethod(vm, classObj->superclass, symbol);
+        if (ret != NULL && ret->type == METHOD_BLOCK) {
+            // bind to the superclass for next call if needed
+            MSCBindMethod(classObj->superclass, vm, symbol, *ret);
+            return ret;
+        }
+        return NULL;
+    } else {
+        MSCBindMethod(classObj, vm, symbol, *ret);
+        return ret;
+    }
+}
 
 static Value importModule(MVM *vm, Value name) {
     name = resolveModule(vm, name);
@@ -809,7 +829,7 @@ static MSCInterpretResult runInterpreter(MVM *vm, Djuru *djuru) {
 
 #else
 
-#define INTERPRET_LOOP                                                       \
+    #define INTERPRET_LOOP                                                       \
       loop:                                                                    \
         DEBUG_TRACE_INSTRUCTIONS();                                            \
         instruction = (Opcode)READ_BYTE()     ;                                  \
@@ -856,6 +876,11 @@ static MSCInterpretResult runInterpreter(MVM *vm, Djuru *djuru) {
         CASE_CODE(POP):
 
         DROP();
+
+        DISPATCH();
+        CASE_CODE(LOAD_ON):
+
+        PUSH(PEEK());
 
         DISPATCH();
         CASE_CODE(NULL):
@@ -965,8 +990,9 @@ static MSCInterpretResult runInterpreter(MVM *vm, Djuru *djuru) {
 
             completeCall:
             // If the class's method table doesn't include the symbol, bail.
-            if (method == NULL && (symbol >= classObj->methods.count ||
-                                   (method = &classObj->methods.data[symbol])->type == METHOD_NONE)) {
+            if (method == NULL && ((symbol >= classObj->methods.count ||
+                                    (method = &classObj->methods.data[symbol])->type == METHOD_NONE) &&
+                                   !(method = findExtensionMethod(vm, classObj, symbol)))) {
                 methodNotFound(vm, classObj, symbol);
                 RUNTIME_ERROR();
             }
@@ -1133,6 +1159,8 @@ static MSCInterpretResult runInterpreter(MVM *vm, Djuru *djuru) {
 
         CASE_CODE(OR):
         {
+            // MSCDumpStack(djuru);
+            // MSCDumpInstruction(vm, fn, (int)(ip - fn->code.data));
             uint16_t offset = READ_SHORT();
             Value condition = PEEK();
 
@@ -1143,6 +1171,8 @@ static MSCInterpretResult runInterpreter(MVM *vm, Djuru *djuru) {
                 // Short-circuit the right hand side.
                 ip += offset;
             }
+            // MSCDumpStack(djuru);
+            // MSCDumpInstruction(vm, fn, (int)(ip - fn->code.data));
             DISPATCH();
         }
 

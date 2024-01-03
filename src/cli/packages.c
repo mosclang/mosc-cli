@@ -18,6 +18,7 @@
 #include "nafamaw.h"
 
 #include "ensure.msc.inc"
+#include "net.msc.inc"
 
 extern void setRootDirectory(MVM *vm);
 
@@ -116,6 +117,46 @@ extern void stderrWrite(MVM *vm);
 extern void schedulerCaptureMethods(MVM *vm);
 
 extern void timerStartTimer(MVM *vm);
+
+extern void ensureHttpComponentsInit(MVM* vm);
+extern void httpServerInit(MVM *vm);
+extern void httpServerDestroy(void *data);
+extern void httpServerAnyMethod(MVM *vm);
+extern void httpServerGetMethod(MVM *vm);
+extern void httpServerDeleteMethod(MVM *vm);
+extern void httpServerOptionsMethod(MVM *vm);
+extern void httpServerPatchMethod(MVM *vm);
+extern void httpServerPostMethod(MVM *vm);
+extern void httpServerPutMethod(MVM *vm);
+// HttpRequest methods
+extern void httpServerReqBody(MVM *vm);
+extern void httpServerReqParam(MVM* vm);
+extern void httpServerReqQuery(MVM* vm);
+extern void httpServerReqMethod(MVM* vm);
+extern void httpServerReqMethodCaseSensitive(MVM* vm);
+extern void httpServerReqOnAbort(MVM* vm);
+extern void httpServerReqOnData(MVM* vm);
+extern void httpServerReqHeader(MVM* vm);
+extern void httpServerReqHeaderForEach(MVM* vm);
+extern void httpServerReqUrl(MVM* vm);
+extern void httpServerReqFullUrl(MVM* vm);
+// HttpResponse Methods
+extern void httpServerResEnd(MVM *vm);
+extern void httpServerResEndWithoutBody(MVM *vm);
+extern void httpServerResPause(MVM *vm);
+extern void httpServerResResume(MVM *vm);
+extern void httpServerResWrite(MVM *vm);
+extern void httpServerResWriteContinue(MVM *vm);
+extern void httpServerResWriteStatus(MVM *vm);
+extern void httpServerResWriteHeader(MVM *vm);
+extern void httpServerResWriteHeaderInt(MVM *vm);
+extern void httpServerResHasResponded(MVM *vm);
+extern void httpServerResOnWritable(MVM *vm);
+extern void httpServerResTryEnd(MVM *vm);
+extern void httpServerResCork(MVM *vm);
+extern void httpServerListen(MVM *vm);
+extern void httpServerRun(MVM *vm);
+extern void httpServerStop(MVM *vm);
 
 
 
@@ -230,7 +271,57 @@ static ModuleRegistry coreCliModules[] =
                 MODULE(ensure)
                 END_MODULE
 
+                MODULE(net)
+                                CLASS(HttpReqRes)
+                                                METHOD("body_(_)", httpServerReqBody)
+                                                METHOD("end_(_,_)", httpServerResEnd)
+                                                METHOD("tryEnd_(_,_,_)", httpServerResTryEnd)
+                                                METHOD("endWithNoBody_(_)", httpServerResEndWithoutBody)
+                                                METHOD("cork_(_)", httpServerResCork)
+                                                METHOD("pause_()", httpServerResPause)
+                                                METHOD("resume_()", httpServerResResume)
+                                                METHOD("write_(_)", httpServerResWrite)
+                                                METHOD("writeContinue_()", httpServerResWriteContinue)
+                                                METHOD("writeHeader_(_,_)", httpServerResWriteHeader)
+                                                METHOD("writeHeaderInt_(_,_)", httpServerResWriteHeaderInt)
+                                                METHOD("writeStatus_(_)", httpServerResWriteStatus)
+                                                METHOD("parameter_(_)", httpServerReqParam)
+                                                METHOD("header_(_)", httpServerReqHeader)
+                                                METHOD("headerForEach_(_)", httpServerReqHeaderForEach)
+                                                METHOD("query_(_)", httpServerReqQuery)
+                                                METHOD("hasResponded_", httpServerResHasResponded)
+                                                METHOD("url_", httpServerReqUrl)
+                                                METHOD("fullUrl_", httpServerReqFullUrl)
+                                                METHOD("method_", httpServerReqMethod)
+                                                METHOD("methodCaseSensitive_", httpServerReqMethodCaseSensitive)
+                                                METHOD("onAbort_(_)", httpServerReqOnAbort)
+                                                METHOD("onData_(_)", httpServerReqOnData)
+                                                METHOD("onWritable_(_)", httpServerResOnWritable)
+                                END_CLASS
+
+                                CLASS(HttpServer_)
+                                                ALLOCATE(httpServerInit)
+                                                FINALIZE(httpServerDestroy)
+                                                METHOD("any_(_,_)", httpServerAnyMethod)
+                                                METHOD("delete_(_,_)", httpServerDeleteMethod)
+                                                METHOD("get_(_,_)", httpServerGetMethod)
+                                                METHOD("options_(_,_)", httpServerOptionsMethod)
+                                                METHOD("patch_(_,_)", httpServerPatchMethod)
+                                                METHOD("post_(_,_)", httpServerPostMethod)
+                                                METHOD("put_(_,_)", httpServerPutMethod)
+                                                METHOD("listen_(_)", httpServerListen)
+                                                METHOD("run_()", httpServerRun)
+                                                METHOD("stop_()", httpServerStop)
+                                END_CLASS
+                                CLASS(HttpServer)
+                                                STATIC_METHOD("ensureGlobalInit_()", ensureHttpComponentsInit)
+                                END_CLASS
+
+                END_MODULE
+
                 SENTINEL_MODULE
+
+
         };
 
 static ModuleRegistry supplementaryPackages[] =
@@ -279,7 +370,9 @@ static ModuleRegistry *findModule(const char *name) {
     for (int j = 0; packages[j].name != NULL; j++) {
         ModuleRegistry *modules = &(*packages[j].modules)[0];
         for (int i = 0; modules[i].name != NULL; i++) {
-            if (strcmp(name, modules[i].name) == 0) return &modules[i];
+            if (strcmp(name, modules[i].name) == 0){
+                return &modules[i];
+            }
         }
     }
 

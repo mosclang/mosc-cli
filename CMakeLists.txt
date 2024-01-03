@@ -32,7 +32,7 @@ set(MSC_SOURCE_FILES)
 set(MSC_INCLUDE_DIRS)
 set(MSC_FLAGS)
 set(MSC_DEPS)
-set(MSC_DEFS)
+set(MSC_DEFS LIBUS_USE_OPENSSL=0 LIBUS_USE_LIBUV=0 LIBUS_NO_SSL)
 set(LINK_OPTIONS)
 
 # Utility function which will only add compiler flags if supported
@@ -94,8 +94,18 @@ file(GLOB SOURCE_FILES_INC deps/nafamaw/**/*.inc)
 LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C} ${SOURCE_FILES_H} ${SOURCE_FILES_INC})
 LIST(APPEND MSC_SOURCE_FILES deps/nafamaw/nafamaw.c deps/nafamaw/nafamaw.h)
 
+# incluse uWebsocket
+LIST(APPEND MSC_INCLUDE_DIRS
+        deps/uWebSockets/src
+        deps/uWebSockets/capi
+        deps/uWebSockets/uSockets/src
+        )
+file(GLOB SOURCE_FILES_H deps/uWebSockets/src/*.h)
+LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_H})
+# file(GLOB SOURCE_FILES_C deps/uWebSockets/capi/*.cpp)
+#LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C})
 
-#include libuv dependancy
+        #include libuv dependancy
 # include_directories(deps/libuv/include deps/libuv/src)
 
 file(GLOB SOURCE_FILES_H deps/libuv/include/**.h)
@@ -157,13 +167,18 @@ ELSE ()
 
     LIST(APPEND MSC_INCLUDE_DIRS deps/libuv/src/unix)
     FIND_PACKAGE(Threads REQUIRED)
-    LIST(APPEND MSC_DEPS ${CMAKE_THREAD_LIBS_INIT})
+    find_package(OpenSSL REQUIRED)
+        MESSAGE(${OPENSSL_LIBRARIES})
+    find_package(ZLIB REQUIRED)
+    LIST(APPEND MSC_DEPS ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} z stdc++)
+
     IF (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         LIST(APPEND MSC_DEPS
                 dl)
         LIST(APPEND MSC_DEFS
                 _DARWIN_USE_64_BIT_INODE=1
                 _DARWIN_UNLIMITED_SELECT=1
+
                 )
         LIST(APPEND MSC_SOURCE_FILES
                 deps/libuv/src/unix/bsd-ifaddrs.c
@@ -204,7 +219,7 @@ TARGET_INCLUDE_DIRECTORIES(moscc PUBLIC ${MSC_INCLUDE_DIRS})
 SET_PROPERTY(TARGET moscc PROPERTY C_STANDARD 99)
 # TARGET_LINK_OPTIONS(moscc PRIVATE ${LINK_OPTIONS})
 TARGET_COMPILE_OPTIONS(moscc PRIVATE ${MSC_FLAGS})
-TARGET_LINK_LIBRARIES(moscc PRIVATE ${MSC_DEPS})
+TARGET_LINK_LIBRARIES(moscc  ${MSC_DEPS} ${CMAKE_CURRENT_SOURCE_DIR}/libs/uSockets.a ${CMAKE_CURRENT_SOURCE_DIR}/libs/libuwebsockets.a)
 
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)

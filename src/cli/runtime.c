@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <msc.h>
+#include <net.h>
 
 #include "io.h"
 #include "packages.h"
@@ -272,6 +273,10 @@ bool reportError(MVM* vm, MSCError type,
     return true;
 }
 
+static void deferCb(void* userData) {
+
+}
+
 static void initVM()
 {
     MSCConfig config;
@@ -291,12 +296,14 @@ static void initVM()
     // Initialize the event loop.
     loop = (uv_loop_t*)malloc(sizeof(uv_loop_t));
     uv_loop_init(loop);
+    uws_loop_defer(uws_get_loop_with_native(loop), deferCb, NULL);
 }
 
 static void freeVM()
 {
     ioShutdown();
     schedulerShutdown();
+    httpShutdown();
 
     uv_loop_close(loop);
     free(loop);
@@ -374,7 +381,6 @@ MSCInterpretResult runCLI()
 
     MSCInterpretResult result = MSCInterpret(vm, "<cli>", "kabo \"cli\" nani CLI");
     if (result == RESULT_SUCCESS) { result = MSCInterpret(vm, "<cli>", "CLI.start()"); }
-
     if (result == RESULT_SUCCESS)
     {
         uv_run(loop, UV_RUN_DEFAULT);
