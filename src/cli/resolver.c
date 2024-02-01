@@ -126,7 +126,7 @@ char *MOSCResolveModule(const char *importer, const char *module) {
     MSCSetSlotString(vm, 3, rootDirectory);
     int error = MSCCall(resolver, resolveModuleFn);
     if (error == RESULT_RUNTIME_ERROR) {
-        fprintf(stderr, "Unexpected error in Resolver.resolveModule(). Cannot continue.\n");
+        fprintf(stderr, "Unexpected error in Gninibaga.resolveModule(). Cannot continue.\n");
         exit(70);
     }
     const char *tmp = MSCGetSlotString(vm, 0);

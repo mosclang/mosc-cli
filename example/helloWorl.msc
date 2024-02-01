@@ -1,4 +1,4 @@
-kabo "net" nani HttpServer, HttpInitOption
+kabo "net" nani HttpServer, HttpInitOption, WebSocket
 kabo "timer" nani WaatiMassa
 kabo "json" nani JSON
 
@@ -13,15 +13,27 @@ tii Baa.let(fn) {
 nin list = [{id: 1, name: "Molo"}, {id: 2, name: "Aly"}]
 nin server = HttpServer
                 .kura()
-                .get("/test") { (req, res) =>
-                    A.yira("Handling test endpoint ${req} - ${res}")
-                    WaatiMassa.sunogo(6000)
-                    res.end("Hello world")
+                .get("/list") { (req, res) =>
+                    # WaatiMassa.sunogo(6000)
+                    A.yira(req.headers)
+                    A.yira(req.method)
+                    A.yira(req.url)
+                    A.yira(req.fullUrl)
+                    A.yira(req.remoteAddress)
+                    res.writeStatus("400")
+                        .writeHeader("Content-Type", "application/json")
+                        .end()
                 }
                 .post("/insert") {(req,res) =>
-                    nin body = JSON.decode(req.body)
-                    list.aFaraAkan(body)
-                    res.end(list)
+                    req.onAbort {
+                        A.yira("Aborted")
+                    }
+                    req.onData { (data, end) =>
+                        A.yira("Data $data = $end")
+                        #nin body = JSON.decode(data)
+                        #list.aFaraAkan(body)
+                        res.end(list)
+                    }
                 }
                 .put("/update/:id") {(req, res) =>
                     nin id = req.parameter(0)
@@ -34,7 +46,7 @@ nin server = HttpServer
                     seginka (body kono entry) {
                         item[entry.key] = entry.value
                     }
-                    res.end(item)
+                    res.cork {r => r.end(item)}
                 }.delete("/remove/:id") { req, res =>
                     nin id = req.parameter(0)
                     nin item = list.yoroMin {(e) => "${e["id"]}" == "$id" }.let {(it) =>
@@ -42,7 +54,39 @@ nin server = HttpServer
                         segin niin nii it.laKolon gansan note it.walanNa[0]
                     }
                     list.aBoye(item)
-                    segin niin item
+                    req.writeHeader("Content-Type", "application/json")
+                    req.end(list)
+                }
+                .ws("/chat", {
+                    maxPayloadLength: 16 * 1024 * 1024,
+                    # compression: Websocket.
+                    idleTimeout: 10,
+                    open: Tii.kura {ws =>
+                        A.yira("Connection from a websocket")
+                    },
+                    close: Tii.kura { ws,message =>
+                        A.yira("Disconnection from a websocket: $message")
+                    },
+                    ping: Tii.kura {ws, message =>
+                        A.yira("Websocket ping")
+                    },
+                    pong: Tii.kura {ws, message =>
+                        A.yira("Websocket pong")
+                    },
+                    drain: Tii.kura {ws =>
+                        A.yira("Websocket backpressure : ${ws.bufferedAmount}")
+                    },
+                    message: Tii.kura { ws, message, code =>
+                        A.yira("New Message $message")
+                        ws.send(message, code)
+                    },
+                    subscription: Tii.kura {ws, topic, count, oldCount =>
+                        A.yira("Subscription on $topic to $count from $oldCount")
+                        A.yira("${server.subscriberCount(topic)}")
+                    }
+                })
+                .any("/close") {req, res =>
+                    server.close()
                 }
                 .listen(3030) { A.yira("Listening on 3030") }
    server.run()

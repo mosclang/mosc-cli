@@ -128,18 +128,41 @@ extern void httpServerOptionsMethod(MVM *vm);
 extern void httpServerPatchMethod(MVM *vm);
 extern void httpServerPostMethod(MVM *vm);
 extern void httpServerPutMethod(MVM *vm);
+extern void httpServerHeadMethod(MVM *vm);
+extern void httpServerConnectMethod(MVM *vm);
+extern void httpServerTraceMethod(MVM *vm);
+extern void httpServerWsMethod(MVM *vm);
+// Ws
+
+extern void wsEnd(MVM *vm);
+extern void wsCork(MVM *vm);
+extern void wsClose(MVM *vm);
+extern void wsRemoteAddress(MVM *vm);
+extern void wsPublish(MVM *vm);
+extern void wsPublishWithOptions(MVM *vm);
+extern void wsSend(MVM *vm);
+extern void wsSubscribe(MVM *vm);
+extern void wsUnsubscribe(MVM *vm);
+extern void wsTopicForEach(MVM *vm);
+extern void wsBufferedAmount(MVM *vm);
+
 // HttpRequest methods
+extern void httpServerReqDestroy(void *data);
 extern void httpServerReqBody(MVM *vm);
 extern void httpServerReqParam(MVM* vm);
+extern void httpServerReqRemoteAddress(MVM* vm);
 extern void httpServerReqQuery(MVM* vm);
 extern void httpServerReqMethod(MVM* vm);
 extern void httpServerReqMethodCaseSensitive(MVM* vm);
 extern void httpServerReqOnAbort(MVM* vm);
 extern void httpServerReqOnData(MVM* vm);
 extern void httpServerReqHeader(MVM* vm);
-extern void httpServerReqHeaderForEach(MVM* vm);
+extern void httpServerReqHeaders(MVM* vm);
 extern void httpServerReqUrl(MVM* vm);
 extern void httpServerReqFullUrl(MVM* vm);
+extern void httpServerReqSetYield(MVM* vm);
+extern void httpServerReqYield(MVM* vm);
+extern void httpServerReqIsAncient(MVM* vm);
 // HttpResponse Methods
 extern void httpServerResEnd(MVM *vm);
 extern void httpServerResEndWithoutBody(MVM *vm);
@@ -157,6 +180,8 @@ extern void httpServerResCork(MVM *vm);
 extern void httpServerListen(MVM *vm);
 extern void httpServerRun(MVM *vm);
 extern void httpServerStop(MVM *vm);
+extern void httpServerPublish(MVM *vm);
+extern void httpServerNumSubscriber(MVM *vm);
 
 
 
@@ -273,11 +298,12 @@ static ModuleRegistry coreCliModules[] =
 
                 MODULE(net)
                                 CLASS(HttpReqRes)
+                                                FINALIZE(httpServerReqDestroy)
                                                 METHOD("body_(_)", httpServerReqBody)
                                                 METHOD("end_(_,_)", httpServerResEnd)
                                                 METHOD("tryEnd_(_,_,_)", httpServerResTryEnd)
                                                 METHOD("endWithNoBody_(_)", httpServerResEndWithoutBody)
-                                                METHOD("cork_(_)", httpServerResCork)
+                                                METHOD("corked_", httpServerResCork)
                                                 METHOD("pause_()", httpServerResPause)
                                                 METHOD("resume_()", httpServerResResume)
                                                 METHOD("write_(_)", httpServerResWrite)
@@ -287,12 +313,16 @@ static ModuleRegistry coreCliModules[] =
                                                 METHOD("writeStatus_(_)", httpServerResWriteStatus)
                                                 METHOD("parameter_(_)", httpServerReqParam)
                                                 METHOD("header_(_)", httpServerReqHeader)
-                                                METHOD("headerForEach_(_)", httpServerReqHeaderForEach)
+                                                METHOD("headerForEach_", httpServerReqHeaders)
                                                 METHOD("query_(_)", httpServerReqQuery)
                                                 METHOD("hasResponded_", httpServerResHasResponded)
                                                 METHOD("url_", httpServerReqUrl)
                                                 METHOD("fullUrl_", httpServerReqFullUrl)
+                                                METHOD("isAncient_", httpServerReqIsAncient)
+                                                METHOD("yield_", httpServerReqYield)
+                                                METHOD("yield_=(_)", httpServerReqSetYield)
                                                 METHOD("method_", httpServerReqMethod)
+                                                METHOD("remoteAddress_", httpServerReqRemoteAddress)
                                                 METHOD("methodCaseSensitive_", httpServerReqMethodCaseSensitive)
                                                 METHOD("onAbort_(_)", httpServerReqOnAbort)
                                                 METHOD("onData_(_)", httpServerReqOnData)
@@ -309,9 +339,28 @@ static ModuleRegistry coreCliModules[] =
                                                 METHOD("patch_(_,_)", httpServerPatchMethod)
                                                 METHOD("post_(_,_)", httpServerPostMethod)
                                                 METHOD("put_(_,_)", httpServerPutMethod)
+                                                METHOD("head_(_,_)", httpServerHeadMethod)
+                                                METHOD("trace_(_,_)", httpServerTraceMethod)
+                                                METHOD("connect_(_,_)", httpServerConnectMethod)
                                                 METHOD("listen_(_)", httpServerListen)
                                                 METHOD("run_()", httpServerRun)
                                                 METHOD("stop_()", httpServerStop)
+                                                METHOD("ws_(_,_)", httpServerWsMethod)
+                                                METHOD("publish_(_,_,_,_)", httpServerPublish)
+                                                METHOD("subscriberCount(_)", httpServerNumSubscriber)
+                                END_CLASS
+                                CLASS(WebSocket)
+                                                METHOD("end(_,_)", wsEnd)
+                                                METHOD("close()", wsClose)
+                                                METHOD("publish(_,_)", wsPublish)
+                                                METHOD("publishWithOptions(_,_,_,_)", wsPublishWithOptions)
+                                                METHOD("cork()", wsCork)
+                                                METHOD("subscribe(_)", wsSubscribe)
+                                                METHOD("unsubscribe(_)", wsUnsubscribe)
+                                                METHOD("topicForEach_(_)", wsTopicForEach)
+                                                METHOD("send(_,_)", wsSend)
+                                                METHOD("remoteAddress", wsRemoteAddress)
+                                                METHOD("bufferedAmount", wsBufferedAmount)
                                 END_CLASS
                                 CLASS(HttpServer)
                                                 STATIC_METHOD("ensureGlobalInit_()", ensureHttpComponentsInit)

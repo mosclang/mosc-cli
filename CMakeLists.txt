@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.8)
+project(moscc)
+
 
 cmake_policy(SET CMP0057 NEW) # Enable IN_LIST operator
 cmake_policy(SET CMP0064 NEW) # Support if (TEST) operator
@@ -7,23 +9,21 @@ IF (POLICY CMP0042)
     CMAKE_POLICY(SET CMP0042 NEW)
 ENDIF ()
 
-project(moscc)
 
-#set(CMAKE_CXX_STANDARD 99)
-#set(CMAKE_C_STANDARD 99)
+
 
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -Wextra -flto -fPIC")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Os -g")
 
-set(CMAKE_C_FLAGS "-Wall -Wextra")
+set(CMAKE_C_FLAGS "-std=c11 -Wall -Wextra -flto -fPIC")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 set(CMAKE_C_FLAGS_MINSIZEREL "-Os")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Os -g")
@@ -32,7 +32,7 @@ set(MSC_SOURCE_FILES)
 set(MSC_INCLUDE_DIRS)
 set(MSC_FLAGS)
 set(MSC_DEPS)
-set(MSC_DEFS LIBUS_USE_OPENSSL=0 LIBUS_USE_LIBUV=0 LIBUS_NO_SSL)
+set(MSC_DEFS LIBUS_USE_OPENSSL LIBUS_USE_LIBUV DEBUG)
 set(LINK_OPTIONS)
 
 # Utility function which will only add compiler flags if supported
@@ -94,18 +94,8 @@ file(GLOB SOURCE_FILES_INC deps/nafamaw/**/*.inc)
 LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C} ${SOURCE_FILES_H} ${SOURCE_FILES_INC})
 LIST(APPEND MSC_SOURCE_FILES deps/nafamaw/nafamaw.c deps/nafamaw/nafamaw.h)
 
-# incluse uWebsocket
-LIST(APPEND MSC_INCLUDE_DIRS
-        deps/uWebSockets/src
-        deps/uWebSockets/capi
-        deps/uWebSockets/uSockets/src
-        )
-file(GLOB SOURCE_FILES_H deps/uWebSockets/src/*.h)
-LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_H})
-# file(GLOB SOURCE_FILES_C deps/uWebSockets/capi/*.cpp)
-#LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C})
 
-        #include libuv dependancy
+#include libuv dependancy
 # include_directories(deps/libuv/include deps/libuv/src)
 
 file(GLOB SOURCE_FILES_H deps/libuv/include/**.h)
@@ -117,6 +107,10 @@ file(GLOB SOURCE_FILES_CH deps/libuv/src/*.h)
 LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C})
 
 LIST(APPEND MSC_INCLUDE_DIRS deps/libuv/include deps/libuv/src)
+
+find_package(OpenSSL REQUIRED)
+find_package(ZLIB REQUIRED)
+LIST(APPEND MSC_DEPS ${OPENSSL_LIBRARIES} OpenSSL::SSL z stdc++)
 
 if (UNIX AND NOT APPLE)
     set(LINUX TRUE)
@@ -136,7 +130,7 @@ IF (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 
 ELSE ()
     ADD_FLAG_IF_SUPPORTED(MSC_FLAGS -fvisibility=hidden)
-    ADD_FLAG_IF_SUPPORTED(MSC_FLAGS -std=gnu89)
+    # ADD_FLAG_IF_SUPPORTED(MSC_FLAGS -std=c++17)
     ADD_FLAG_IF_SUPPORTED(MSC_FLAGS -pedantic)
     ADD_FLAG_IF_SUPPORTED(MSC_FLAGS -Wall)
     ADD_FLAG_IF_SUPPORTED(MSC_FLAGS -Wextra)
@@ -167,10 +161,7 @@ ELSE ()
 
     LIST(APPEND MSC_INCLUDE_DIRS deps/libuv/src/unix)
     FIND_PACKAGE(Threads REQUIRED)
-    find_package(OpenSSL REQUIRED)
-        MESSAGE(${OPENSSL_LIBRARIES})
-    find_package(ZLIB REQUIRED)
-    LIST(APPEND MSC_DEPS ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} z stdc++)
+    LIST(APPEND MSC_DEPS ${CMAKE_THREAD_LIBS_INIT})
 
     IF (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         LIST(APPEND MSC_DEPS
@@ -213,13 +204,29 @@ ELSE ()
     ENDIF ()
 ENDIF ()
 
+
+
+# incluse uWebsocket
+LIST(APPEND MSC_INCLUDE_DIRS
+        deps/uWebSockets/src
+        deps/uWebSockets/capi
+        deps/uWebSockets/uSockets/src
+        )
+# add uSocket source
+file(GLOB SOURCE_FILES_C deps/uWebSockets/uSockets/src/*.c deps/uWebSockets/uSockets/src/eventing/*.c deps/uWebSockets/uSockets/src/crypto/*.c deps/uWebSockets/uSockets/src/io_uring/*.c deps/uWebSockets/uSockets/src/crypto/*.cpp)
+LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C})
+# add uWebsocket source
+file(GLOB SOURCE_FILES_C deps/uWebSockets/capi/*.cpp)
+LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C})
+
+
 ADD_EXECUTABLE(moscc ${MSC_SOURCE_FILES})
 TARGET_COMPILE_DEFINITIONS(moscc PRIVATE ${MSC_DEFS})
 TARGET_INCLUDE_DIRECTORIES(moscc PUBLIC ${MSC_INCLUDE_DIRS})
-SET_PROPERTY(TARGET moscc PROPERTY C_STANDARD 99)
+# SET_PROPERTY(TARGET moscc PROPERTY C_STANDARD 11)
 # TARGET_LINK_OPTIONS(moscc PRIVATE ${LINK_OPTIONS})
 TARGET_COMPILE_OPTIONS(moscc PRIVATE ${MSC_FLAGS})
-TARGET_LINK_LIBRARIES(moscc  ${MSC_DEPS} ${CMAKE_CURRENT_SOURCE_DIR}/libs/uSockets.a ${CMAKE_CURRENT_SOURCE_DIR}/libs/libuwebsockets.a)
+TARGET_LINK_LIBRARIES(moscc PRIVATE ${MSC_DEPS})
 
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
