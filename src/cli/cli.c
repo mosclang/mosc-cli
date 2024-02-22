@@ -5,8 +5,8 @@
 #include <string.h>
 #include "runtime.h"
 
-void setRootDirectory(MVM* vm) {
-    const char* dir = MSCGetSlotString(vm,1);
+void setRootDirectory(Djuru* djuru) {
+    const char* dir = MSCGetSlotString(djuru,1);
     char* copydir = malloc(strlen(dir)+1);
     strcpy(copydir, dir);
     rootDirectory = copydir;

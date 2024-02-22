@@ -5,11 +5,9 @@
 
 #include "Compiler.h"
 #include "../runtime/MVM.h"
-#include "../runtime/debuger.h"
-#include "../helpers/Helper.h"
-#include "../memory/Value.h"
+
 #include "Parser.h"
-#include "Token.h"
+#include "../memory/Value.h"
 
 
 // The stack effect of each opcode. The index in the array is the opcode, and
@@ -130,16 +128,16 @@ DECLARE_BUFFER(ClassField, ClassField);
 DEFINE_BUFFER(ClassField, ClassField);
 
 
-typedef struct {
-    ByteBuffer *code;
-    ClassFieldBuffer fieldTrackings;
-} ClassFieldPatch;
-
 // Bookkeeping information for compiling a class definition.
 typedef struct {
 
     // The name of the class.
     String *name;
+
+    // Attributes for the class itself
+    Map *classAttributes;
+    // Attributes for methods in this class
+    Map *methodAttributes;
 
     // Symbol table for the fields of the class.
     SymbolTable fields;
@@ -274,9 +272,25 @@ struct Compiler {
     // are not stored, so we can't rely on attributes->count
     // to enforce an error message when attributes are used
     // anywhere other than methods or classes.
-
+    int numAttributes;
+    // Attributes for the next class or method.
+    Map *attributes;
 
 };
+
+// Forward declarations
+void classDefinition(Compiler *compiler, bool isExtern);
+
+static void disallowAttributes(Compiler *compiler);
+
+static void addToAttributeGroup(Compiler *compiler, Value group, Value key, Value value);
+
+static void emitClassAttributes(Compiler *compiler, ClassInfo *classInfo);
+
+static void copyAttributes(Compiler *compiler, Map *into);
+
+static void copyMethodAttributes(Compiler *compiler, bool isExtern,
+                                 bool isStatic, const char *fullSignature, int32_t length);
 
 
 static void newCompilerUpvalue(CompilerUpvalue *thisValue, bool isLocal, int index) {
@@ -369,11 +383,13 @@ static void initCompiler(Compiler *compiler, Parser *parser, Compiler *parent,
     compiler->enclosingClass = NULL;
     compiler->isInitializer = false;
     compiler->isExtension = false;
+    compiler->dotSource = EOF_TOKEN;
 
     // Initialize these to NULL before allocating in case a GC gets triggered in
     // the middle of initializing the compiler.
     compiler->function = NULL;
     compiler->constants = NULL;
+    compiler->attributes = NULL;
 
     parser->vm->compiler = compiler;
 
@@ -398,7 +414,8 @@ static void initCompiler(Compiler *compiler, Parser *parser, Compiler *parent,
         // The initial scope for functions and methods is local scope.
         compiler->scopeDepth = 0;
     }
-
+    compiler->numAttributes = 0;
+    compiler->attributes = MSCMapFrom(parser->vm);
     compiler->function = MSCFunctionFrom(parser->vm, parser->module, compiler->numLocals);
     MSCInitClassFieldBuffer(&compiler->fieldTrackings);
 
@@ -415,10 +432,16 @@ void MSCMarkCompiler(Compiler *compiler, MVM *mvm) {
     do {
 
         MSCGrayObject((Object *) parent->function, mvm);
-
+        MSCGrayObject((Object *) parent->attributes, mvm);
         MSCGrayObject((Object *) parent->constants, mvm);
         if (parent->enclosingClass != NULL) {
             MSCBlackenSymbolTable(mvm, &parent->enclosingClass->fields);
+            if (parent->enclosingClass->methodAttributes != NULL) {
+                MSCGrayObject((Object *) parent->enclosingClass->methodAttributes, mvm);
+            }
+            if (parent->enclosingClass->classAttributes != NULL) {
+                MSCGrayObject((Object *) parent->enclosingClass->classAttributes, mvm);
+            }
         }
         parent = parent->parent;
     } while (parent != NULL);
@@ -566,7 +589,6 @@ Function *endCompiler(Compiler *compiler, const char *debugName, int debugNameLe
     // Mark the end of the bytecode. Since it may contain multiple early returns,
     // we can't rely on OP_RETURN to tell us we're at the end.
     emitOp(compiler, OP_END);
-
     MSCFunctionBindName(compiler->function, compiler->parser->vm, debugName, debugNameLength);
 
     // In the function that contains this one, load the resulting function object.
@@ -1820,6 +1842,7 @@ static void functionDefinition(Compiler *compiler, bool isStatic) {
 
     consume(compiler, LBRACE_TOKEN, "Expect '{' to begin function body.");
     finishBody(&functionCompiler);
+    functionCompiler.function->arity = signature.arity;
     endCompiler(&functionCompiler, fullSignature, length);
 
 
@@ -2388,10 +2411,10 @@ static bool staticField(Compiler *compiler, bool canAssign, bool declaring, Vari
     Variable variable = resolveName(compiler, token->start, token->length);
     bareName(compiler, true, variable);
     // if not private static field, expose a get and setter for the field
-    if (!isPrivate(token->start, token->length)) {
+    /*if (!isPrivate(token->start, token->length)) {
         emitSetter(compiler, classVariable, variable.index, token->start, token->length, true);
         emitGetter(compiler, classVariable, variable.index, token->start, token->length, true);
-    }
+    }*/
     return true;
 }
 
@@ -2576,11 +2599,11 @@ void methodCall(Compiler *compiler, Opcode instruction,
         // Parse the parameter list, if any.
         bool hasParen = match(compiler, LPAREN_TOKEN);
         bool hasParam = hasParen || (peek(compiler) == ID_TOKEN &&
-                                                          (peekNext(compiler) == COMMA_TOKEN ||
-                                                           peekNext(compiler) == ARROW_TOKEN));
+                                     (peekNext(compiler) == COMMA_TOKEN ||
+                                      peekNext(compiler) == ARROW_TOKEN));
         if (hasParam) {
             finishParameterList(&fnCompiler, &fnSignature);
-            if(hasParen) consume(compiler, RPAREN_TOKEN, "Expect ')' after function parameters.");
+            if (hasParen) consume(compiler, RPAREN_TOKEN, "Expect ')' after function parameters.");
             consume(compiler, ARROW_TOKEN, "Expect '=>' after function parameters.");
         }
 
@@ -2789,11 +2812,7 @@ static void name(Compiler *compiler, bool canAssign) {
     if (next == DOT_TOKEN) {
         compiler->dotSource = token->type;
     }
-    /*if (next == LPAREN_TOKEN || next == LBRACKET_TOKEN || next == LBRACE_TOKEN) {
-        // method call
-        printf("Call next:: %s", compiler->parser->currentChar);
-        namedCall(compiler,false, OP_CALL_0);
-    }*/
+
     Variable variable = resolveNonmodule(compiler, token->start, token->length);
     if (variable.index != -1) {
         bareName(compiler, canAssign, variable);
@@ -2949,7 +2968,6 @@ static void call(Compiler *compiler, bool canAssign) {
         int ifJump = emitJump(compiler, OP_OR);
 
         consume(compiler, ID_TOKEN, "Expect method or attribute name after '.'.");
-        // printf(":::(%.*s)\n", compiler->parser->previous.length, compiler->parser->previous.start);
         // emitByte(compiler, OP_POP);
         namedCall(compiler, canAssign, OP_CALL_0);
 
@@ -2962,7 +2980,6 @@ static void call(Compiler *compiler, bool canAssign) {
 
     }
     consume(compiler, ID_TOKEN, "Expect method or attribute name after '.'.");
-    // printf(":::(%.*s)\n", compiler->parser->previous.length, compiler->parser->previous.start);
     namedCall(compiler, canAssign, OP_CALL_0);
 }
 
@@ -2997,7 +3014,7 @@ static void functionCall(Compiler *compiler, bool canAssign) {
                                       peekNext(compiler) == ARROW_TOKEN));
         if (hasParam) {
             finishParameterList(&fnCompiler, &fnSignature);
-            if(hasParen) consume(compiler, RPAREN_TOKEN, "Expect ')' after function parameters.");
+            if (hasParen) consume(compiler, RPAREN_TOKEN, "Expect ')' after function parameters.");
             consume(compiler, ARROW_TOKEN, "Expect '=>' after function parameters.");
         }
 
@@ -3041,7 +3058,7 @@ static void lambdaCall(Compiler *compiler, bool canAssign) {
                                   peekNext(compiler) == ARROW_TOKEN));
     if (hasParam) {
         finishParameterList(&fnCompiler, &fnSignature);
-        if(hasParen) consume(compiler, RPAREN_TOKEN, "Expect ')' after function parameters.");
+        if (hasParen) consume(compiler, RPAREN_TOKEN, "Expect ')' after function parameters.");
         consume(compiler, ARROW_TOKEN, "Expect '=>' after function parameters.");
     }
 
@@ -3220,7 +3237,6 @@ void namedSignature(Compiler *compiler, Signature *signature) {
     if (maybeSetter(compiler, signature)) return;
     // Regular named function with an optional parameter list.
     parameterList(compiler, signature);
-
 }
 
 // Compiles a method signature for a constructor.
@@ -3243,6 +3259,26 @@ void constructorSignature(Compiler *compiler, Signature *signature) {
 
     finishParameterList(compiler, signature);
     consume(compiler, RPAREN_TOKEN, "Expect ')' after parameters.");
+}
+
+static bool isLiteral(Compiler *compiler) {
+    return peek(compiler) == FALSE_TOKEN ||
+           peek(compiler) == TRUE_TOKEN ||
+           peek(compiler) == NUMBER_CONST_TOKEN ||
+           peek(compiler) == STRING_CONST_TOKEN ||
+           peek(compiler) == ID_TOKEN;
+}
+
+static Value consumeLiteral(Compiler *compiler, const char *message) {
+    if (match(compiler, FALSE_TOKEN)) return FALSE_VAL;
+    if (match(compiler, TRUE_TOKEN)) return TRUE_VAL;
+    if (match(compiler, NUMBER_CONST_TOKEN)) return compiler->parser->previous.value;
+    if (match(compiler, STRING_CONST_TOKEN)) return compiler->parser->previous.value;
+    if (match(compiler, ID_TOKEN)) return compiler->parser->previous.value;
+
+    error(compiler, message);
+    nextToken(compiler->parser);
+    return NULL_VAL;
 }
 
 // This table defines all of the parsing rules for the prefix and infix
@@ -3354,6 +3390,7 @@ GrammarRule rules[] = {
         /* INVALID_TOKEN                 80 */ UNUSED,
         /* NULLISH_TOKEN                 81 */ INFIX(PREC_NULLISH, conditional),
         /* NULLCHECK_TOKEN               82 */ INFIX(PREC_CALL, call),
+        /* AT_TOKEN                      83 */ UNUSED,
 
 };
 
@@ -3423,12 +3460,78 @@ static void createConstructor(Compiler *compiler, Signature *signature,
     endCompiler(&methodCompiler, "", 0);
 }
 
+
+static bool matchAttribute(Compiler *compiler) {
+
+    if (match(compiler, AT_TOKEN)) {
+        compiler->numAttributes++;
+
+        bool runtimeAccess = match(compiler, NOT_TOKEN);
+        if (match(compiler, ID_TOKEN)) {
+
+            Value group = compiler->parser->previous.value;
+            TokenType ahead = peek(compiler);
+            if (ahead == ASSIGN_TOKEN || ahead == EOL_TOKEN) {
+                Value key = group;
+                Value value = NULL_VAL;
+                if (match(compiler, ASSIGN_TOKEN)) {
+                    value = consumeLiteral(compiler,
+                                           "Expect a Bool, Num, String or Identifier literal for an attribute value.");
+                }
+                if (runtimeAccess) addToAttributeGroup(compiler, NULL_VAL, key, value);
+            } else if (match(compiler, LPAREN_TOKEN)) {
+                ignoreNewlines(compiler);
+                if (match(compiler, RPAREN_TOKEN)) {
+                    Value key = group;
+                    Value value = NULL_VAL;
+                    if (runtimeAccess) addToAttributeGroup(compiler, NULL_VAL, key, value);
+                } else if (isLiteral(compiler) && peekNext(compiler) != ASSIGN_TOKEN) {
+                    Value key = group;
+                    Value value = consumeLiteral(compiler,
+                                                 "Expect a Bool, Num, String or Identifier literal for an attribute value.");
+                    ignoreNewlines(compiler);
+                    consume(compiler, RPAREN_TOKEN, "Expect ) after attribute value.");
+                    if (runtimeAccess) addToAttributeGroup(compiler, NULL_VAL, key, value);
+                } else {
+                    while (peek(compiler) != RPAREN_TOKEN) {
+                        consume(compiler, ID_TOKEN, "Expect name for attribute key.");
+                        Value key = compiler->parser->previous.value;
+                        Value value = NULL_VAL;
+                        if (match(compiler, ASSIGN_TOKEN)) {
+                            value = consumeLiteral(compiler,
+                                                   "Expect a Bool, Num, String or Identifier literal for an attribute value.");
+                        }
+                        if (runtimeAccess) addToAttributeGroup(compiler, group, key, value);
+                        ignoreNewlines(compiler);
+                        if (!match(compiler, COMMA_TOKEN)) break;
+                        ignoreNewlines(compiler);
+                    }
+
+                    ignoreNewlines(compiler);
+                    consume(compiler, RPAREN_TOKEN,
+                            "Expected ')' after grouped attributes.");
+                }
+            } else {
+                error(compiler, "Expect an equal, newline or grouping after an attribute key.");
+            }
+        } else {
+            error(compiler, "Expect an attribute definition after @.");
+        }
+
+        consumeLine(compiler, "Expect newline after attribute.");
+        return true;
+    }
+
+    return false;
+}
+
 // Compiles a method definition inside a class body.
 //
 // Returns `true` if it compiled successfully, or `false` if the method couldn't
 // be parsed.
 
 static bool method(Compiler *compiler, Variable *classVariable, bool isStatic, bool isExtern) {
+
 
     compiler->enclosingClass->
             inStatic = isStatic;
@@ -3457,6 +3560,7 @@ static bool method(Compiler *compiler, Variable *classVariable, bool isStatic, b
 
     // Compile the method signature.
     signatureFn(&methodCompiler, &signature);
+
     methodCompiler.isInitializer = signature.type == SIG_INITIALIZER;
 
     if (isStatic && signature.type == SIG_INITIALIZER) {
@@ -3468,6 +3572,9 @@ static bool method(Compiler *compiler, Variable *classVariable, bool isStatic, b
     char fullSignature[MAX_METHOD_SIGNATURE];
     int length;
     signatureToString(&signature, fullSignature, &length);
+
+    // Copy any attributes the compiler collected into the enclosing class
+    copyMethodAttributes(compiler, isExtern, isStatic, fullSignature, length);
 
     // Check for duplicate methods. Doesn't matter that it's already been
     // defined, error will discard bytecode anyway.
@@ -3489,7 +3596,7 @@ static bool method(Compiler *compiler, Variable *classVariable, bool isStatic, b
                 "Expect '{' to begin method body.");
 
         finishBody(&methodCompiler);
-
+        methodCompiler.function->arity = signature.arity;
         endCompiler(&methodCompiler, fullSignature, length);
     }
 
@@ -3516,11 +3623,13 @@ static bool method(Compiler *compiler, Variable *classVariable, bool isStatic, b
 
 bool classStatement(Compiler *compiler, Variable *classVariable) {
     matchLine(compiler);
+    // Parse any attributes before the method and store them
+    if (matchAttribute(compiler)) {
+        return classStatement(compiler, classVariable);
+    }
     bool isExtern = match(compiler, EXTERN_TOKEN);
     bool isStatic = match(compiler, STATIC_TOKEN);
-    if (
-            match(compiler, VAR_TOKEN)
-            ) {
+    if (match(compiler, VAR_TOKEN)) {
         consume(compiler, ID_TOKEN,
                 "Exect field name after keyword 'nin'");
         if (isExtern) {
@@ -3599,8 +3708,15 @@ void classDefinition(Compiler *compiler, bool isExtern) {
 
 
 
+
     // Allocate attribute maps if necessary.
     // A method will allocate the methods one if needed
+    classInfo.classAttributes = compiler->attributes->count > 0
+                                ? MSCMapFrom(compiler->parser->vm)
+                                : NULL;
+    classInfo.methodAttributes = NULL;
+    // Copy any existing attributes into the class
+    copyAttributes(compiler, classInfo.classAttributes);
 
 
     compiler->enclosingClass = &classInfo;
@@ -3621,42 +3737,23 @@ void classDefinition(Compiler *compiler, bool isExtern) {
     // If any attributes are present,
     // instantiate a ClassAttributes instance for the class
     // and send it over to CODE_END_CLASS
-    /*bool hasAttr = classInfo.classAttributes != NULL ||
+    bool hasAttr = classInfo.classAttributes != NULL ||
                    classInfo.methodAttributes != NULL;
     if (hasAttr) {
         emitClassAttributes(compiler, &classInfo);
-        loadVariable(compiler, classVariable);
+        loadVariable(compiler, &classVariable);
         // At the moment, we don't have other uses for CODE_END_CLASS,
         // so we put it inside this condition. Later, we can always
         // emit it and use it as needed.
-        emitOp(compiler, CODE_END_CLASS);
-    }*/
+        emitOp(compiler, OP_END_CLASS);
+    }
 
     // Update the class with the number of fields.
     if (!isExtern) {
         compiler->function->code.data[numFieldsInstruction] =
                 (uint8_t) classInfo.fields.count;
     }
-    /*for (auto patch = classInfo.toPatch.begin();
-    patch != classInfo.toPatch.end();
-    patch++) {
-        ByteBuffer *code = (*patch).code;
-        auto fieldTrackings = (*patch).fieldTrackings;
-        ClassField *field = fieldTrackings.data;
-        while (field < fieldTrackings.data + fieldTrackings.count) {
-            int fieldSymbol = MSCSymbolTableFind(&classInfo->fields, field->name, static_cast<size_t>(field->length));
-            if (fieldSymbol == -1) {
-                // error(compiler,"Undefined field %.*s used", field->length, field->name);
-                field++;
-                continue;
-            }
-            code->data[field->slot] = static_cast<uint8_t>(fieldSymbol);
-            code->data[field->slot + 1] = 0xff;
-            code->data[field->slot + 2] = 0xff;
-            field++;
-        }
-        freeClassFieldBuffer(compiler->parser->vm, &fieldTrackings);
-    }*/
+
     // Clear symbol tables for tracking field and method names.
     MSCSymbolTableClear(compiler->parser->vm, &classInfo.fields);
     MSCFreeIntBuffer(compiler->parser->vm, &classInfo.methods);
@@ -3667,10 +3764,10 @@ void classDefinition(Compiler *compiler, bool isExtern) {
 }
 
 static bool definition(Compiler *compiler, bool expr) {
-    /*if(matchAttribute(compiler)) {
-        definition(compiler);
-        return;
-    }*/
+    if (matchAttribute(compiler)) {
+        definition(compiler, false);
+        return false;
+    }
 
     if (match(compiler, CLASS_TOKEN)) {
         classDefinition(compiler, false);
@@ -3681,7 +3778,7 @@ static bool definition(Compiler *compiler, bool expr) {
         return false;
     }
 
-    // disallowAttributes(compiler);
+    disallowAttributes(compiler);
 
     if (match(compiler, FROM_TOKEN)) {
         import(compiler, false);
@@ -3704,8 +3801,6 @@ static bool definition(Compiler *compiler, bool expr) {
 int whenBranch(Compiler *compiler) {
     ignoreNewlines(compiler);
     TokenType currentToken = peek(compiler);
-    // printf("Cur:: %d\n", currentToken);
-    // nextToken(compiler->parser);
     GrammarFn infix = rules[currentToken].infix;
     if (infix != NULL) {
         nextToken(compiler->parser);
@@ -3790,9 +3885,6 @@ static void whenExpression(Compiler *compiler, bool canAssign) {
     emitByteArg(compiler, OP_STORE_LOCAL, discriminant);
     emitByte(compiler, OP_POP);
     softPopScope(compiler);
-    // printf("RetSlot %d\n", retSlot);
-    //MSCDumpCode(compiler->parser->vm, compiler->function);
-    //popScope(compiler);
 
 }
 
@@ -3816,16 +3908,185 @@ static void defineMethod(Compiler *compiler, Variable *classVariable, bool isSta
     emitShortArg(compiler, instruction, methodSymbol);
 }
 
-static Value consumeLiteral(Compiler *compiler, const char *message) {
-    if (match(compiler, FALSE_TOKEN)) return FALSE_VAL;
-    if (match(compiler, TRUE_TOKEN)) return TRUE_VAL;
-    if (match(compiler, NUMBER_CONST_TOKEN)) return compiler->parser->previous.value;
-    if (match(compiler, STRING_CONST_TOKEN)) return compiler->parser->previous.value;
-    if (match(compiler, ID_TOKEN)) return compiler->parser->previous.value;
-
-    error(compiler, message);
-    nextToken(compiler->parser);
-    return NULL_VAL;
+// Throw an error if any attributes were found preceding,
+// and clear the attributes so the error doesn't keep happening.
+static void disallowAttributes(Compiler *compiler) {
+    if (compiler->numAttributes > 0) {
+        error(compiler, "Attributes can only specified before a kulu or a method");
+        MSCMapClear(compiler->attributes, compiler->parser->vm);
+        compiler->numAttributes = 0;
+    }
 }
 
+// Add an attribute to a given group in the compiler attribues map
+static void addToAttributeGroup(Compiler *compiler,
+                                Value group, Value key, Value value) {
+    MVM *vm = compiler->parser->vm;
+
+    if (IS_OBJ(group)) MSCPushRoot(vm->gc, AS_OBJ(group));
+    if (IS_OBJ(key)) MSCPushRoot(vm->gc, AS_OBJ(key));
+    if (IS_OBJ(value)) MSCPushRoot(vm->gc, AS_OBJ(value));
+
+    Value groupMapValue = MSCMapGet(compiler->attributes, group);
+    if (IS_UNDEFINED(groupMapValue)) {
+        groupMapValue = OBJ_VAL(MSCMapFrom(vm));
+        MSCMapSet(compiler->attributes, vm, group, groupMapValue);
+    }
+
+    //we store them as a map per so we can maintain duplicate keys
+    //group = { key:[value, ...], }
+    Map *groupMap = AS_MAP(groupMapValue);
+
+    //nin keyItems = group[key]
+    //nii(!keyItems) keyItems = group[key] = []
+    Value keyItemsValue = MSCMapGet(groupMap, key);
+    if (IS_UNDEFINED(keyItemsValue)) {
+        keyItemsValue = OBJ_VAL(MSCListFrom(vm, 0));
+        MSCMapSet(groupMap, vm, key, keyItemsValue);
+    }
+
+    //keyItems.add(value)
+    List *keyItems = AS_LIST(keyItemsValue);
+    MSCWriteValueBuffer(vm, &keyItems->elements, value);
+
+    if (IS_OBJ(group)) MSCPopRoot(vm->gc);
+    if (IS_OBJ(key)) MSCPopRoot(vm->gc);
+    if (IS_OBJ(value)) MSCPopRoot(vm->gc);
+}
+
+
+// Emit the attributes in the give map onto the stack
+static void emitAttributes(Compiler *compiler, Map *attributes) {
+    // Instantiate a new map for the attributes
+    loadCoreVariable(compiler, "Wala");
+    callMethod(compiler, 0, "kura()", 6);
+
+    // The attributes are stored as group = { key:[value, value, ...] }
+    // so our first level is the group map
+    for (uint32_t groupIdx = 0; groupIdx < attributes->capacity; groupIdx++) {
+        const MapEntry *groupEntry = &attributes->entries[groupIdx];
+        if (IS_UNDEFINED(groupEntry->key)) continue;
+        //group key
+        emitConstant(compiler, groupEntry->key);
+
+        //group value is gonna be a map
+        loadCoreVariable(compiler, "Wala");
+        callMethod(compiler, 0, "kura()", 6);
+
+        Map *groupItems = AS_MAP(groupEntry->value);
+        for (uint32_t itemIdx = 0; itemIdx < groupItems->capacity; itemIdx++) {
+            const MapEntry *itemEntry = &groupItems->entries[itemIdx];
+            if (IS_UNDEFINED(itemEntry->key)) continue;
+
+            emitConstant(compiler, itemEntry->key);
+            // Attribute key value, key = []
+            loadCoreVariable(compiler, "Walan");
+            callMethod(compiler, 0, "kura()", 6);
+            // Add the items to the key list
+            List *items = AS_LIST(itemEntry->value);
+            for (int it = 0; it < items->elements.count; ++it) {
+                emitConstant(compiler, items->elements.data[it]);
+                callMethod(compiler, 1, "aFaraAkan_(_)", 13);
+            }
+            // Add the list to the map
+            callMethod(compiler, 2, "aFaraAkan_(_,_)", 15);
+        }
+
+        // Add the key/value to the map
+        callMethod(compiler, 2, "aFaraAkan_(_,_)", 15);
+    }
+
+}
+
+// Methods are stored as method <-> attributes, so we have to have
+// an indirection to resolve for methods
+static void emitAttributeMethods(Compiler *compiler, Map *attributes) {
+    // Instantiate a new map for the attributes
+    loadCoreVariable(compiler, "Wala");
+    callMethod(compiler, 0, "kura()", 6);
+
+    for (uint32_t methodIdx = 0; methodIdx < attributes->capacity; methodIdx++) {
+        const MapEntry *methodEntry = &attributes->entries[methodIdx];
+        if (IS_UNDEFINED(methodEntry->key)) continue;
+        emitConstant(compiler, methodEntry->key);
+        Map *attributeMap = AS_MAP(methodEntry->value);
+        emitAttributes(compiler, attributeMap);
+        callMethod(compiler, 2, "aFaraAkan_(_,_)", 15);
+    }
+}
+
+
+// Emit the final ClassAttributes that exists at runtime
+static void emitClassAttributes(Compiler *compiler, ClassInfo *classInfo) {
+    loadCoreVariable(compiler, "KuluLadaw");
+
+    classInfo->classAttributes
+    ? emitAttributes(compiler, classInfo->classAttributes)
+    : null(compiler, false);
+
+    classInfo->methodAttributes
+    ? emitAttributeMethods(compiler, classInfo->methodAttributes)
+    : null(compiler, false);
+
+    callMethod(compiler, 2, "kura(_,_)", 9);
+}
+
+// Copy the current attributes stored in the compiler into a destination map
+// This also resets the counter, since the intent is to consume the attributes
+static void copyAttributes(Compiler *compiler, Map *into) {
+    compiler->numAttributes = 0;
+
+    if (compiler->attributes->count == 0) return;
+    if (into == NULL) return;
+
+    MVM *vm = compiler->parser->vm;
+
+    // Note we copy the actual values as is since we'll take ownership
+    // and clear the original map
+    for (uint32_t attrIdx = 0; attrIdx < compiler->attributes->capacity; attrIdx++) {
+        const MapEntry *attrEntry = &compiler->attributes->entries[attrIdx];
+        if (IS_UNDEFINED(attrEntry->key)) continue;
+        MSCMapSet(into, vm, attrEntry->key, attrEntry->value);
+    }
+
+    MSCMapClear(compiler->attributes, vm);
+}
+
+// Copy the current attributes stored in the compiler into the method specific
+// attributes for the current enclosingClass.
+// This also resets the counter, since the intent is to consume the attributes
+static void copyMethodAttributes(Compiler *compiler, bool isExtern,
+                                 bool isStatic, const char *fullSignature, int32_t length) {
+    compiler->numAttributes = 0;
+
+    if (compiler->attributes->count == 0) return;
+
+    MVM *vm = compiler->parser->vm;
+
+    // Make a map for this method to copy into
+    Map *methodAttr = MSCMapFrom(vm);
+    MSCPushRoot(vm->gc, (Object *) methodAttr);
+    copyAttributes(compiler, methodAttr);
+
+    // Include 'dunan dialen ' in front as needed
+    int32_t fullLength = length;
+    if (isExtern) fullLength += 6;
+    if (isStatic) fullLength += 7;
+    char fullSignatureWithPrefix[MAX_METHOD_SIGNATURE + 6 + 7];
+    const char *externPrefix = isExtern ? "dunan " : "";
+    const char *staticPrefix = isStatic ? "dialen " : "";
+    sprintf(fullSignatureWithPrefix, "%s%s%.*s", externPrefix, staticPrefix,
+            length, fullSignature);
+    fullSignatureWithPrefix[fullLength] = '\0';
+
+    if (compiler->enclosingClass->methodAttributes == NULL) {
+        compiler->enclosingClass->methodAttributes = MSCMapFrom(vm);
+    }
+
+    // Store the method attributes in the class map
+    Value key = MSCStringFromCharsWithLength(vm, fullSignatureWithPrefix, (uint32_t) fullLength);
+    MSCMapSet(compiler->enclosingClass->methodAttributes, vm, key, OBJ_VAL(methodAttr));
+
+    MSCPopRoot(vm->gc);
+}
 

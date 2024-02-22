@@ -26,9 +26,9 @@ void osSetArguments(int argc, const char* argv[])
     args = argv;
 }
 
-void platformHomePath(MVM* vm)
+void platformHomePath(Djuru* djuru)
 {
-    MSCEnsureSlots(vm, 1);
+    MSCEnsureSlots(djuru, 1);
 
     char _buffer[MSC_PATH_MAX];
     char* buffer = _buffer;
@@ -43,86 +43,86 @@ void platformHomePath(MVM* vm)
 
     if (result != 0)
     {
-        MSCSetSlotString(vm, 0, "Cannot get the current user's home directory.");
-        MSCAbortDjuru(vm, 0);
+        MSCSetSlotString(djuru, 0, "Cannot get the current user's home directory.");
+        MSCAbortDjuru(djuru, 0);
         return;
     }
 
-    MSCSetSlotString(vm, 0, buffer);
+    MSCSetSlotString(djuru, 0, buffer);
 
     if (buffer != _buffer) free(buffer);
 }
 
-void platformName(MVM* vm)
+void platformName(Djuru* djuru)
 {
-    MSCEnsureSlots(vm, 1);
+    MSCEnsureSlots(djuru, 1);
 
 #ifdef _WIN32
-    MSCSetSlotString(vm, 0, "Windows");
+    MSCSetSlotString(djuru, 0, "Windows");
 #elif __APPLE__
 #if TARGET_IPHONE_SIMULATOR || TARGET_OS_IPHONE
-    MSCSetSlotString(vm, 0, "iOS");
+    MSCSetSlotString(djuru, 0, "iOS");
 #elif TARGET_OS_MAC
-    MSCSetSlotString(vm, 0, "OS X");
+    MSCSetSlotString(djuru, 0, "OS X");
 #else
-    MSCSetSlotString(vm, 0, "Unknown");
+    MSCSetSlotString(djuru, 0, "Unknown");
 #endif
 #elif __linux__
-    MSCSetSlotString(vm, 0, "Linux");
+    MSCSetSlotString(djuru, 0, "Linux");
   #elif __unix__
-    MSCSetSlotString(vm, 0, "Unix");
+    MSCSetSlotString(djuru, 0, "Unix");
   #elif defined(_POSIX_VERSION)
-    MSCSetSlotString(vm, 0, "POSIX");
+    MSCSetSlotString(djuru, 0, "POSIX");
   #else
-    MSCSetSlotString(vm, 0, "Unknown");
+    MSCSetSlotString(djuru, 0, "Unknown");
 #endif
 }
 
-void platformIsPosix(MVM* vm)
+void platformIsPosix(Djuru* djuru)
 {
-    MSCEnsureSlots(vm, 1);
+    MSCEnsureSlots(djuru, 1);
 
 #ifdef _WIN32
-    MSCSetSlotBool(vm, 0, false);
+    MSCSetSlotBool(djuru, 0, false);
 #elif __APPLE__
-    MSCSetSlotBool(vm, 0, true);
+    MSCSetSlotBool(djuru, 0, true);
 #elif __linux__
-    MSCSetSlotBool(vm, 0, true);
+    MSCSetSlotBool(djuru, 0, true);
   #elif __unix__
-    MSCSetSlotBool(vm, 0, true);
+    MSCSetSlotBool(djuru, 0, true);
   #elif defined(_POSIX_VERSION)
-    MSCSetSlotBool(vm, 0, true);
+    MSCSetSlotBool(djuru, 0, true);
   #else
-    MSCSetSlotString()(vm, 0, false);
+    MSCSetSlotString()(djuru, 0, false);
 #endif
 }
 
-void processAllArguments(MVM* vm)
+void processAllArguments(Djuru* djuru)
 {
-    MSCEnsureSlots(vm, 2);
-    MSCSetSlotNewList(vm, 0);
+    MSCEnsureSlots(djuru, 2);
+    MSCSetSlotNewList(djuru, 0);
 
     for (int i = 0; i < numArgs; i++)
     {
-        MSCSetSlotString(vm, 1, args[i]);
-        MSCInsertInList(vm, 0, -1, 1);
+        MSCSetSlotString(djuru, 1, args[i]);
+        MSCInsertInList(djuru, 0, -1, 1);
     }
 }
 
-void processCwd(MVM* vm)
+void processCwd(Djuru* djuru)
 {
-    MSCEnsureSlots(vm, 1);
+    MSCEnsureSlots(djuru, 1);
 
     char buffer[MSC_PATH_MAX * 4];
     size_t length = sizeof(buffer);
     if (uv_cwd(buffer, &length) != 0)
     {
-        MSCSetSlotString(vm, 0, "Cannot get current working directory.");
-        MSCAbortDjuru(vm, 0);
+        MSCSetSlotString(djuru, 0, "Cannot get current working directory.");
+        MSCAbortDjuru(djuru, 0);
         return;
     }
 
-    MSCSetSlotString(vm, 0, buffer);
+    MSCSetSlotString(djuru, 0, buffer);
 }
 
 // Called when the UV handle for a process is done, so we can free it
@@ -163,24 +163,24 @@ static void processOnExit(uv_process_t* req, int64_t exit_status, int term_signa
     free((void*)data);
 
     schedulerResume(fiber, true);
-    MSCSetSlotDouble(getVM(), 2, (double)exit_status);
+    MSCSetSlotDouble(getCurrentThread(), 2, (double)exit_status);
     schedulerFinishResume();
 }
 
-void processExit(MVM* vm) {
-    int code = (int)MSCGetSlotDouble(vm, 1);
+void processExit(Djuru* djuru) {
+    int code = (int)MSCGetSlotDouble(djuru, 1);
     setExitCode(code);
     uv_stop(getLoop());
 }
 
 // chdir_(dir)
-void processChdir(MVM* vm) {
-    MSCEnsureSlots(vm, 1);
-    const char* dir = MSCGetSlotString(vm, 1);
+void processChdir(Djuru* djuru) {
+    MSCEnsureSlots(djuru, 1);
+    const char* dir = MSCGetSlotString(djuru, 1);
     if (uv_chdir(dir) != 0)
     {
-        MSCSetSlotString(vm, 0, "Cannot change directory.");
-        MSCAbortDjuru(vm, 0);
+        MSCSetSlotString(djuru, 0, "Cannot change directory.");
+        MSCAbortDjuru(djuru, 0);
         return;
     }
 }
@@ -188,16 +188,16 @@ void processChdir(MVM* vm) {
 //        1     2    3    4     5
 // exec_(cmd, args, cwd, env, djuru)
 
-void processExec(MVM* vm) {
+void processExec(Djuru* djuru) {
     ProcessData* data = (ProcessData*)malloc(sizeof(ProcessData));
     memset(data, 0, sizeof(ProcessData));
 
     // todo: add env + cwd + flags args
 
-    char* cmd = cli_strdup(MSCGetSlotString(vm, 1));
+    char* cmd = cli_strdup(MSCGetSlotString(djuru, 1));
 
-    if (MSCGetSlotType(vm, 3) != MSC_TYPE_NULL) {
-        const char* cwd = MSCGetSlotString(vm, 3);
+    if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+        const char* cwd = MSCGetSlotString(djuru, 3);
         data->options.cwd = cwd;
     }
 
@@ -216,14 +216,14 @@ void processExec(MVM* vm) {
 
     data->options.file = cmd;
     data->options.exit_cb = processOnExit;
-    data->djuru = MSCGetSlotHandle(vm, 5);
+    data->djuru = MSCGetSlotHandle(djuru, 5);
 
-    MSCEnsureSlots(vm, 7);
+    MSCEnsureSlots(djuru, 7);
 
-    if (MSCGetSlotType(vm, 4) == MSC_TYPE_NULL) {
+    if (MSCGetSlotType(djuru, 4) == MSC_TYPE_NULL) {
         // no environment specified
-    } else if (MSCGetSlotType(vm, 4) == MSC_TYPE_LIST) {
-        int envCount = MSCGetListCount(vm, 4);
+    } else if (MSCGetSlotType(djuru, 4) == MSC_TYPE_LIST) {
+        int envCount = MSCGetListCount(djuru, 4);
         int envSize = sizeof(char*) * (envCount + 1);
 
         data->options.env = (char**)malloc(envSize);
@@ -231,17 +231,17 @@ void processExec(MVM* vm) {
 
         for (int i = 0; i < envCount ; i++)
         {
-            MSCGetListElement(vm, 4, i, 6);
-            if (MSCGetSlotType(vm, 6) != MSC_TYPE_STRING) {
-                MSCSetSlotString(vm, 0, "arguments to env are supposed to be strings");
-                MSCAbortDjuru(vm, 0);
+            MSCGetListElement(djuru, 4, i, 6);
+            if (MSCGetSlotType(djuru, 6) != MSC_TYPE_STRING) {
+                MSCSetSlotString(djuru, 0, "arguments to env are supposed to be strings");
+                MSCAbortDjuru(djuru, 0);
             }
-            char* envKeyPlusValue = cli_strdup(MSCGetSlotString(vm, 6));
+            char* envKeyPlusValue = cli_strdup(MSCGetSlotString(djuru, 6));
             data->options.env[i] = envKeyPlusValue;
         }
     }
 
-    int argCount = MSCGetListCount(vm, 2);
+    int argCount = MSCGetListCount(djuru, 2);
     int argsSize = sizeof(char*) * (argCount + 2);
 
     // First argument is the cmd, last+1 is NULL
@@ -251,12 +251,12 @@ void processExec(MVM* vm) {
 
     for (int i = 0; i < argCount; i++)
     {
-        MSCGetListElement(vm, 2, i, 3);
-        if (MSCGetSlotType(vm, 3) != MSC_TYPE_STRING) {
-            MSCSetSlotString(vm, 0, "arguments to args are supposed to be strings");
-            MSCAbortDjuru(vm, 0);
+        MSCGetListElement(djuru, 2, i, 3);
+        if (MSCGetSlotType(djuru, 3) != MSC_TYPE_STRING) {
+            MSCSetSlotString(djuru, 0, "arguments to args are supposed to be strings");
+            MSCAbortDjuru(djuru, 0);
         }
-        char* arg = cli_strdup(MSCGetSlotString(vm, 3));
+        char* arg = cli_strdup(MSCGetSlotString(djuru, 3));
         data->options.args[i + 1] = arg;
     }
 
@@ -270,23 +270,23 @@ void processExec(MVM* vm) {
     {
         // should be stderr??? but no idea how to make tests work/pass with that
         fprintf(stdout, "Could not launch %s, reason: %s\n", cmd, uv_strerror(r));
-        MSCSetSlotString(vm, 0, "Could not spawn process.");
-        MSCReleaseHandle(vm, data->djuru);
-        MSCAbortDjuru(vm, 0);
+        MSCSetSlotString(djuru, 0, "Could not spawn process.");
+        MSCReleaseHandle(djuru, data->djuru);
+        MSCAbortDjuru(djuru, 0);
     }
 }
 
-void processPid(MVM* vm) {
-    MSCEnsureSlots(vm, 1);
-    MSCSetSlotDouble(vm, 0, uv_os_getpid());
+void processPid(Djuru* djuru) {
+    MSCEnsureSlots(djuru, 1);
+    MSCSetSlotDouble(djuru, 0, uv_os_getpid());
 }
 
-void processPpid(MVM* vm) {
-    MSCEnsureSlots(vm, 1);
-    MSCSetSlotDouble(vm, 0, uv_os_getppid());
+void processPpid(Djuru* djuru) {
+    MSCEnsureSlots(djuru, 1);
+    MSCSetSlotDouble(djuru, 0, uv_os_getppid());
 }
 
-void processVersion(MVM* vm) {
-    MSCEnsureSlots(vm, 1);
-    MSCSetSlotString(vm, 0, MSC_VERSION_STRING);
+void processVersion(Djuru* djuru) {
+    MSCEnsureSlots(djuru, 1);
+    MSCSetSlotString(djuru, 0, MSC_VERSION_STRING);
 }

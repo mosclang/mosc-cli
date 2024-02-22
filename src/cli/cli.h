@@ -7,6 +7,6 @@
 
 #include "msc.h"
 
-void setRootDirectory(MVM* vm);
+ // void setRootDirectory(Djuru* djuru);
 
 #endif //MOSC_CLI_H

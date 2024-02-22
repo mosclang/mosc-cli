@@ -20,168 +20,224 @@
 #include "ensure.msc.inc"
 #include "net.msc.inc"
 
-extern void setRootDirectory(MVM *vm);
+extern void setRootDirectory(Djuru *djuru);
 
-extern void directoryList(MVM *vm);
+extern void directoryList(Djuru *djuru);
 
-extern void directoryCreate(MVM *vm);
+extern void directoryCreate(Djuru *djuru);
 
-extern void directoryDelete(MVM *vm);
+extern void directoryDelete(Djuru *djuru);
 
-extern void fileAllocate(MVM *vm);
+extern void fileAllocate(Djuru *djuru);
 
 extern void fileFinalize(void *data);
 
-extern void fileDelete(MVM *vm);
+extern void fileDelete(Djuru *djuru);
 
-extern void fileOpen(MVM *vm);
+extern void fileOpen(Djuru *djuru);
 
-extern void fileSizePath(MVM *vm);
+extern void fileSizePath(Djuru *djuru);
 
-extern void fileClose(MVM *vm);
+extern void fileClose(Djuru *djuru);
 
-extern void fileDescriptor(MVM *vm);
+extern void fileDescriptor(Djuru *djuru);
 
-extern void fileReadBytes(MVM *vm);
+extern void fileReadBytes(Djuru *djuru);
 
-extern void fileRealPath(MVM *vm);
+extern void fileRealPath(Djuru *djuru);
 
-extern void fileSize(MVM *vm);
+extern void fileSize(Djuru *djuru);
 
-extern void fileStat(MVM *vm);
+extern void fileStat(Djuru *djuru);
 
-extern void fileWriteBytes(MVM *vm);
+extern void fileWriteBytes(Djuru *djuru);
 
-extern void platformHomePath(MVM *vm);
+extern void platformHomePath(Djuru *djuru);
 
-extern void platformIsPosix(MVM *vm);
+extern void platformIsPosix(Djuru *djuru);
 
-extern void platformName(MVM *vm);
+extern void platformName(Djuru *djuru);
 
-extern void processAllArguments(MVM *vm);
+extern void processAllArguments(Djuru *djuru);
 
-extern void processCwd(MVM *vm);
+extern void processCwd(Djuru *djuru);
 
-extern void processPid(MVM *vm);
+extern void processPid(Djuru *djuru);
 
-extern void processPpid(MVM *vm);
+extern void processPpid(Djuru *djuru);
 
-extern void processVersion(MVM *vm);
+extern void processVersion(Djuru *djuru);
 
-extern void processExit(MVM *vm);
+extern void processExit(Djuru *djuru);
 
-extern void processExec(MVM *vm);
+extern void processExec(Djuru *djuru);
 
-extern void processChdir(MVM *vm);
+extern void processChdir(Djuru *djuru);
 
-extern void statPath(MVM *vm);
+extern void statPath(Djuru *djuru);
 
-extern void statBlockCount(MVM *vm);
+extern void statBlockCount(Djuru *djuru);
 
-extern void statBlockSize(MVM *vm);
+extern void statBlockSize(Djuru *djuru);
 
-extern void statDevice(MVM *vm);
+extern void statDevice(Djuru *djuru);
 
-extern void statGroup(MVM *vm);
+extern void statGroup(Djuru *djuru);
 
-extern void statInode(MVM *vm);
+extern void statInode(Djuru *djuru);
 
-extern void statLinkCount(MVM *vm);
+extern void statLinkCount(Djuru *djuru);
 
-extern void statMode(MVM *vm);
+extern void statMode(Djuru *djuru);
 
-extern void statSize(MVM *vm);
+extern void statSize(Djuru *djuru);
 
-extern void statSpecialDevice(MVM *vm);
+extern void statSpecialDevice(Djuru *djuru);
 
-extern void statUser(MVM *vm);
+extern void statUser(Djuru *djuru);
 
-extern void statIsDirectory(MVM *vm);
+extern void statIsDirectory(Djuru *djuru);
 
-extern void statIsFile(MVM *vm);
+extern void statIsFile(Djuru *djuru);
 
-extern void stdinIsRaw(MVM *vm);
+extern void stdinIsRaw(Djuru *djuru);
 
-extern void stdinIsRawSet(MVM *vm);
+extern void stdinIsRawSet(Djuru *djuru);
 
-extern void stdinIsTerminal(MVM *vm);
+extern void stdinIsTerminal(Djuru *djuru);
 
-extern void stdinReadStart(MVM *vm);
+extern void stdinReadStart(Djuru *djuru);
 
-extern void stdinReadStop(MVM *vm);
+extern void stdinReadStop(Djuru *djuru);
 
-extern void stdoutFlush(MVM *vm);
+extern void stdoutFlush(Djuru *djuru);
 
-extern void stderrWrite(MVM *vm);
+extern void stderrWrite(Djuru *djuru);
 
-extern void schedulerCaptureMethods(MVM *vm);
+extern void schedulerCaptureMethods(Djuru *djuru);
 
-extern void timerStartTimer(MVM *vm);
+extern void timerStartTimer(Djuru *djuru);
 
-extern void ensureHttpComponentsInit(MVM* vm);
-extern void httpServerInit(MVM *vm);
+extern void ensureHttpComponentsInit(Djuru *vm);
+
+extern void httpServerInit(Djuru *djuru);
+
 extern void httpServerDestroy(void *data);
-extern void httpServerAnyMethod(MVM *vm);
-extern void httpServerGetMethod(MVM *vm);
-extern void httpServerDeleteMethod(MVM *vm);
-extern void httpServerOptionsMethod(MVM *vm);
-extern void httpServerPatchMethod(MVM *vm);
-extern void httpServerPostMethod(MVM *vm);
-extern void httpServerPutMethod(MVM *vm);
-extern void httpServerHeadMethod(MVM *vm);
-extern void httpServerConnectMethod(MVM *vm);
-extern void httpServerTraceMethod(MVM *vm);
-extern void httpServerWsMethod(MVM *vm);
+
+extern void httpServerAnyMethod(Djuru *djuru);
+
+extern void httpServerGetMethod(Djuru *djuru);
+
+extern void httpServerDeleteMethod(Djuru *djuru);
+
+extern void httpServerOptionsMethod(Djuru *djuru);
+
+extern void httpServerPatchMethod(Djuru *djuru);
+
+extern void httpServerPostMethod(Djuru *djuru);
+
+extern void httpServerPutMethod(Djuru *djuru);
+
+extern void httpServerHeadMethod(Djuru *djuru);
+
+extern void httpServerConnectMethod(Djuru *djuru);
+
+extern void httpServerTraceMethod(Djuru *djuru);
+
+extern void httpServerWsMethod(Djuru *djuru);
 // Ws
 
-extern void wsEnd(MVM *vm);
-extern void wsCork(MVM *vm);
-extern void wsClose(MVM *vm);
-extern void wsRemoteAddress(MVM *vm);
-extern void wsPublish(MVM *vm);
-extern void wsPublishWithOptions(MVM *vm);
-extern void wsSend(MVM *vm);
-extern void wsSubscribe(MVM *vm);
-extern void wsUnsubscribe(MVM *vm);
-extern void wsTopicForEach(MVM *vm);
-extern void wsBufferedAmount(MVM *vm);
+extern void wsEnd(Djuru* djuru);
+
+extern void wsCork(Djuru* djuru);
+
+extern void wsClose(Djuru* djuru);
+
+extern void wsRemoteAddress(Djuru* djuru);
+
+extern void wsPublish(Djuru* djuru);
+
+extern void wsPublishWithOptions(Djuru* djuru);
+
+extern void wsSend(Djuru* djuru);
+
+extern void wsSubscribe(Djuru* djuru);
+
+extern void wsUnsubscribe(Djuru* djuru);
+
+extern void wsTopicForEach(Djuru* djuru);
+
+extern void wsBufferedAmount(Djuru* djuru);
 
 // HttpRequest methods
 extern void httpServerReqDestroy(void *data);
-extern void httpServerReqBody(MVM *vm);
-extern void httpServerReqParam(MVM* vm);
-extern void httpServerReqRemoteAddress(MVM* vm);
-extern void httpServerReqQuery(MVM* vm);
-extern void httpServerReqMethod(MVM* vm);
-extern void httpServerReqMethodCaseSensitive(MVM* vm);
-extern void httpServerReqOnAbort(MVM* vm);
-extern void httpServerReqOnData(MVM* vm);
-extern void httpServerReqHeader(MVM* vm);
-extern void httpServerReqHeaders(MVM* vm);
-extern void httpServerReqUrl(MVM* vm);
-extern void httpServerReqFullUrl(MVM* vm);
-extern void httpServerReqSetYield(MVM* vm);
-extern void httpServerReqYield(MVM* vm);
-extern void httpServerReqIsAncient(MVM* vm);
+
+extern void httpServerReqBody(Djuru* djuru);
+
+extern void httpServerReqParam(Djuru* djuru);
+
+extern void httpServerReqRemoteAddress(Djuru* djuru);
+
+extern void httpServerReqQuery(Djuru* djuru);
+
+extern void httpServerReqMethod(Djuru* djuru);
+
+extern void httpServerReqMethodCaseSensitive(Djuru* djuru);
+
+extern void httpServerReqOnAbort(Djuru* djuru);
+
+extern void httpServerReqOnData(Djuru* djuru);
+
+extern void httpServerReqHeader(Djuru* djuru);
+
+extern void httpServerReqHeaders(Djuru* djuru);
+
+extern void httpServerReqUrl(Djuru* djuru);
+
+extern void httpServerReqFullUrl(Djuru* djuru);
+
+extern void httpServerReqSetYield(Djuru* djuru);
+
+extern void httpServerReqYield(Djuru* djuru);
+
+extern void httpServerReqIsAncient(Djuru* djuru);
+
 // HttpResponse Methods
-extern void httpServerResEnd(MVM *vm);
-extern void httpServerResEndWithoutBody(MVM *vm);
-extern void httpServerResPause(MVM *vm);
-extern void httpServerResResume(MVM *vm);
-extern void httpServerResWrite(MVM *vm);
-extern void httpServerResWriteContinue(MVM *vm);
-extern void httpServerResWriteStatus(MVM *vm);
-extern void httpServerResWriteHeader(MVM *vm);
-extern void httpServerResWriteHeaderInt(MVM *vm);
-extern void httpServerResHasResponded(MVM *vm);
-extern void httpServerResOnWritable(MVM *vm);
-extern void httpServerResTryEnd(MVM *vm);
-extern void httpServerResCork(MVM *vm);
-extern void httpServerListen(MVM *vm);
-extern void httpServerRun(MVM *vm);
-extern void httpServerStop(MVM *vm);
-extern void httpServerPublish(MVM *vm);
-extern void httpServerNumSubscriber(MVM *vm);
+extern void httpServerResEnd(Djuru* djuru);
+
+extern void httpServerResEndWithoutBody(Djuru* djuru);
+
+extern void httpServerResPause(Djuru* djuru);
+
+extern void httpServerResResume(Djuru* djuru);
+
+extern void httpServerResWrite(Djuru* djuru);
+
+extern void httpServerResWriteContinue(Djuru* djuru);
+
+extern void httpServerResWriteStatus(Djuru* djuru);
+
+extern void httpServerResWriteHeader(Djuru* djuru);
+
+extern void httpServerResWriteHeaderInt(Djuru* djuru);
+
+extern void httpServerResHasResponded(Djuru* djuru);
+
+extern void httpServerResOnWritable(Djuru* djuru);
+
+extern void httpServerResTryEnd(Djuru* djuru);
+
+extern void httpServerResCork(Djuru* djuru);
+
+extern void httpServerListen(Djuru* djuru);
+
+extern void httpServerRun(Djuru* djuru);
+
+extern void httpServerStop(Djuru* djuru);
+
+extern void httpServerPublish(Djuru* djuru);
+
+extern void httpServerNumSubscriber(Djuru* djuru);
 
 
 
@@ -395,7 +451,7 @@ static ModuleRegistry supplementaryPackages[] =
 static PackageRegistry packages[MAX_LIBRARIES] = {
         {"core",           (ModuleRegistry (*)[MAX_MODULES_PER_LIBRARY]) &coreCliModules},
         {"suppl_packages", (ModuleRegistry (*)[MAX_MODULES_PER_LIBRARY]) &supplementaryPackages},
-        {"nafamaw", (ModuleRegistry (*)[MAX_MODULES_PER_LIBRARY])&nafamawModules},
+        {"nafamaw",        (ModuleRegistry (*)[MAX_MODULES_PER_LIBRARY]) &nafamawModules},
         {NULL, NULL}
 };
 
@@ -419,7 +475,7 @@ static ModuleRegistry *findModule(const char *name) {
     for (int j = 0; packages[j].name != NULL; j++) {
         ModuleRegistry *modules = &(*packages[j].modules)[0];
         for (int i = 0; modules[i].name != NULL; i++) {
-            if (strcmp(name, modules[i].name) == 0){
+            if (strcmp(name, modules[i].name) == 0) {
                 return &modules[i];
             }
         }

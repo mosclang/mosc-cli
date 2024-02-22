@@ -14,6 +14,7 @@
 
 #include <stdio.h>
 #include <fcntl.h>
+#include <Value.h>
 
 typedef struct sFileRequestData {
     MSCHandle *fiber;
@@ -47,12 +48,12 @@ static void shutdownStdin() {
     }
 
     if (stdinClass != NULL) {
-        MSCReleaseHandle(getVM(), stdinClass);
+        MSCReleaseHandle(getCurrentThread(), stdinClass);
         stdinClass = NULL;
     }
 
     if (stdinOnData != NULL) {
-        MSCReleaseHandle(getVM(), stdinOnData);
+        MSCReleaseHandle(getCurrentThread(), stdinOnData);
         stdinOnData = NULL;
     }
 }
@@ -61,7 +62,7 @@ void ioShutdown() {
     shutdownStdin();
 
     if (statClass != NULL) {
-        MSCReleaseHandle(getVM(), statClass);
+        MSCReleaseHandle(getCurrentThread(), statClass);
         statClass = NULL;
     }
 }
@@ -115,22 +116,22 @@ static void directoryListCallback(uv_fs_t *request) {
 
     uv_dirent_t entry;
 
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 3);
-    MSCSetSlotNewList(vm, 2);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 3);
+    MSCSetSlotNewList(djuru, 2);
 
     while (uv_fs_scandir_next(request, &entry) != UV_EOF) {
-        MSCSetSlotString(vm, 1, entry.name);
-        MSCInsertInList(vm, 2, -1, 1);
+        MSCSetSlotString(djuru, 1, entry.name);
+        MSCInsertInList(djuru, 2, -1, 1);
     }
 
     schedulerResume(freeRequest(request), true);
     schedulerFinishResume();
 }
 
-void directoryList(MVM *vm) {
-    const char *path = MSCGetSlotString(vm, 1);
-    MSCHandle *fiber = MSCGetSlotHandle(vm, 2);
+void directoryList(Djuru *djuru) {
+    const char *path = MSCGetSlotString(djuru, 1);
+    MSCHandle *fiber = MSCGetSlotHandle(djuru, 2);
     uv_fs_t *request = createRequest(fiber);
 
     int error = uv_fs_scandir(getLoop(), request, path, 0, directoryListCallback);
@@ -143,23 +144,23 @@ void fileDirectoryCallback(uv_fs_t *request) {
     schedulerResume(freeRequest(request), false);
 }
 
-void directoryCreate(MVM *vm) {
-    const char *path = MSCGetSlotString(vm, 1);
-    uv_fs_t *request = createRequest(MSCGetSlotHandle(vm, 2));
+void directoryCreate(Djuru *djuru) {
+    const char *path = MSCGetSlotString(djuru, 1);
+    uv_fs_t *request = createRequest(MSCGetSlotHandle(djuru, 2));
     uv_fs_mkdir(getLoop(), request, path, 0, fileDirectoryCallback);
 }
 
-void directoryDelete(MVM *vm) {
-    const char *path = MSCGetSlotString(vm, 1);
-    uv_fs_t *request = createRequest(MSCGetSlotHandle(vm, 2));
+void directoryDelete(Djuru *djuru) {
+    const char *path = MSCGetSlotString(djuru, 1);
+    uv_fs_t *request = createRequest(MSCGetSlotHandle(djuru, 2));
     uv_fs_rmdir(getLoop(), request, path, fileDirectoryCallback);
 }
 
-void fileAllocate(MVM *vm) {
+void fileAllocate(Djuru *djuru) {
     // Store the file descriptor in the foreign data, so that we can get to it
     // in the finalizer.
-    int *fd = (int *) MSCSetSlotNewExtern(vm, 0, 0, sizeof(int));
-    *fd = (int) MSCGetSlotDouble(vm, 1);
+    int *fd = (int *) MSCSetSlotNewExtern(djuru, 0, 0, sizeof(int));
+    *fd = (int) MSCGetSlotDouble(djuru, 1);
 }
 
 void fileFinalize(void *data) {
@@ -178,9 +179,9 @@ static void fileDeleteCallback(uv_fs_t *request) {
     schedulerResume(freeRequest(request), false);
 }
 
-void fileDelete(MVM *vm) {
-    const char *path = MSCGetSlotString(vm, 1);
-    MSCHandle *fiber = MSCGetSlotHandle(vm, 2);
+void fileDelete(Djuru *djuru) {
+    const char *path = MSCGetSlotString(djuru, 1);
+    MSCHandle *fiber = MSCGetSlotHandle(djuru, 2);
     uv_fs_t *request = createRequest(fiber);
 
     int error = uv_fs_unlink(getLoop(), request, path, fileDeleteCallback);
@@ -192,7 +193,7 @@ static void fileOpenCallback(uv_fs_t *request) {
 
     double fd = (double) request->result;
     schedulerResume(freeRequest(request), true);
-    MSCSetSlotDouble(getVM(), 2, fd);
+    MSCSetSlotDouble(getCurrentThread(), 2, fd);
     schedulerFinishResume();
 }
 
@@ -213,10 +214,10 @@ static int mapFileFlags(int flags) {
     return result;
 }
 
-void fileOpen(MVM *vm) {
-    const char *path = MSCGetSlotString(vm, 1);
-    int flags = (int) MSCGetSlotDouble(vm, 2);
-    uv_fs_t *request = createRequest(MSCGetSlotHandle(vm, 3));
+void fileOpen(Djuru *djuru) {
+    const char *path = MSCGetSlotString(djuru, 1);
+    int flags = (int) MSCGetSlotDouble(djuru, 2);
+    uv_fs_t *request = createRequest(MSCGetSlotHandle(djuru, 3));
 
     // TODO: Allow controlling access.
     uv_fs_open(getLoop(), request, path, mapFileFlags(flags), S_IRUSR | S_IWUSR,
@@ -229,13 +230,13 @@ static void fileSizeCallback(uv_fs_t *request) {
 
     double size = (double) request->statbuf.st_size;
     schedulerResume(freeRequest(request), true);
-    MSCSetSlotDouble(getVM(), 2, size);
+    MSCSetSlotDouble(getCurrentThread(), 2, size);
     schedulerFinishResume();
 }
 
-void fileSizePath(MVM *vm) {
-    const char *path = MSCGetSlotString(vm, 1);
-    uv_fs_t *request = createRequest(MSCGetSlotHandle(vm, 2));
+void fileSizePath(Djuru *djuru) {
+    const char *path = MSCGetSlotString(djuru, 1);
+    uv_fs_t *request = createRequest(MSCGetSlotHandle(djuru, 2));
     uv_fs_stat(getLoop(), request, path, fileSizeCallback);
 }
 
@@ -245,28 +246,28 @@ static void fileCloseCallback(uv_fs_t *request) {
     schedulerResume(freeRequest(request), false);
 }
 
-void fileClose(MVM *vm) {
-    int *foreign = (int *) MSCGetSlotExtern(vm, 0);
+void fileClose(Djuru *djuru) {
+    int *foreign = (int *) MSCGetSlotExtern(djuru, 0);
     int fd = *foreign;
 
     // If it's already closed, we're done.
     if (fd == -1) {
-        MSCSetSlotBool(vm, 0, true);
+        MSCSetSlotBool(djuru, 0, true);
         return;
     }
 
     // Mark it closed immediately.
     *foreign = -1;
 
-    uv_fs_t *request = createRequest(MSCGetSlotHandle(vm, 1));
+    uv_fs_t *request = createRequest(MSCGetSlotHandle(djuru, 1));
     uv_fs_close(getLoop(), request, fd, fileCloseCallback);
-    MSCSetSlotBool(vm, 0, false);
+    MSCSetSlotBool(djuru, 0, false);
 }
 
-void fileDescriptor(MVM *vm) {
-    int *foreign = (int *) MSCGetSlotExtern(vm, 0);
+void fileDescriptor(Djuru *djuru) {
+    int *foreign = (int *) MSCGetSlotExtern(djuru, 0);
     int fd = *foreign;
-    MSCSetSlotDouble(vm, 0, fd);
+    MSCSetSlotDouble(djuru, 0, fd);
 }
 
 static void fileReadBytesCallback(uv_fs_t *request) {
@@ -280,22 +281,22 @@ static void fileReadBytesCallback(uv_fs_t *request) {
     // embedding API supported a way to *give* it bytes that were previously
     // allocated using Mosc's own allocator.
     schedulerResume(freeRequest(request), true);
-    MSCSetSlotBytes(getVM(), 2, buffer.base, count);
+    MSCSetSlotBytes(getCurrentThread(), 2, buffer.base, count);
     schedulerFinishResume();
 
     // TODO: Likewise, freeing this after we resume is lame.
     free(buffer.base);
 }
 
-void fileReadBytes(MVM *vm) {
-    uv_fs_t *request = createRequest(MSCGetSlotHandle(vm, 3));
+void fileReadBytes(Djuru *djuru) {
+    uv_fs_t *request = createRequest(MSCGetSlotHandle(djuru, 3));
 
-    int fd = *(int *) MSCGetSlotExtern(vm, 0);
+    int fd = *(int *) MSCGetSlotExtern(djuru, 0);
     // TODO: Assert fd != -1.
 
     FileRequestData *data = (FileRequestData *) request->data;
-    size_t length = (size_t) MSCGetSlotDouble(vm, 1);
-    size_t offset = (size_t) MSCGetSlotDouble(vm, 2);
+    size_t length = (size_t) MSCGetSlotDouble(djuru, 1);
+    size_t offset = (size_t) MSCGetSlotDouble(djuru, 2);
 
     data->buffer.len = length;
     data->buffer.base = (char *) malloc(length);
@@ -307,54 +308,53 @@ void fileReadBytes(MVM *vm) {
 static void realPathCallback(uv_fs_t *request) {
     if (handleRequestError(request)) return;
 
-    MSCEnsureSlots(getVM(), 3);
-    MSCSetSlotString(getVM(), 2, (char *) request->ptr);
+    MSCEnsureSlots(getCurrentThread(), 3);
+    MSCSetSlotString(getCurrentThread(), 2, (char *) request->ptr);
     schedulerResume(freeRequest(request), true);
     schedulerFinishResume();
 }
 
-void fileRealPath(MVM *vm) {
-    const char *path = MSCGetSlotString(vm, 1);
-    uv_fs_t *request = createRequest(MSCGetSlotHandle(vm, 2));
+void fileRealPath(Djuru *djuru) {
+    const char *path = MSCGetSlotString(djuru, 1);
+    uv_fs_t *request = createRequest(MSCGetSlotHandle(djuru, 2));
     uv_fs_realpath(getLoop(), request, path, realPathCallback);
 }
 
 // Called by libuv when the stat call completes.
 static void statCallback(uv_fs_t *request) {
     if (handleRequestError(request)) return;
-
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 3);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 3);
 
     // Get a handle to the Stat class. We'll hang on to this so we don't have to
     // look it up by name every time.
     if (statClass == NULL) {
-        MSCGetVariable(vm, "io", "Stat", 0);
-        statClass = MSCGetSlotHandle(vm, 0);
+        MSCGetVariable(djuru, "io", "Stat", 0);
+        statClass = MSCGetSlotHandle(djuru, 0);
     }
 
     // Create a foreign Stat object to store the stat struct.
-    MSCSetSlotHandle(vm, 2, statClass);
-    MSCSetSlotNewExtern(vm, 2, 2, sizeof(uv_stat_t));
+    MSCSetSlotHandle(djuru, 2, statClass);
+    MSCSetSlotNewExtern(djuru, 2, 2, sizeof(uv_stat_t));
 
     // Copy the stat data.
-    uv_stat_t *data = (uv_stat_t *) MSCGetSlotExtern(vm, 2);
+    uv_stat_t *data = (uv_stat_t *) MSCGetSlotExtern(djuru, 2);
     *data = request->statbuf;
 
     schedulerResume(freeRequest(request), true);
     schedulerFinishResume();
 }
 
-void fileStat(MVM *vm) {
-    int fd = *(int *) MSCGetSlotExtern(vm, 0);
-    uv_fs_t *request = createRequest(MSCGetSlotHandle(vm, 1));
+void fileStat(Djuru *djuru) {
+    int fd = *(int *) MSCGetSlotExtern(djuru, 0);
+    uv_fs_t *request = createRequest(MSCGetSlotHandle(djuru, 1));
     uv_fs_fstat(getLoop(), request, fd, statCallback);
 
 }
 
-void fileSize(MVM *vm) {
-    int fd = *(int *) MSCGetSlotExtern(vm, 0);
-    uv_fs_t *request = createRequest(MSCGetSlotHandle(vm, 1));
+void fileSize(Djuru *djuru) {
+    int fd = *(int *) MSCGetSlotExtern(djuru, 0);
+    uv_fs_t *request = createRequest(MSCGetSlotHandle(djuru, 1));
     uv_fs_fstat(getLoop(), request, fd, fileSizeCallback);
 }
 
@@ -367,12 +367,12 @@ static void fileWriteBytesCallback(uv_fs_t *request) {
     schedulerResume(freeRequest(request), false);
 }
 
-void fileWriteBytes(MVM *vm) {
-    int fd = *(int *) MSCGetSlotExtern(vm, 0);
+void fileWriteBytes(Djuru *djuru) {
+    int fd = *(int *) MSCGetSlotExtern(djuru, 0);
     int length;
-    const char *bytes = MSCGetSlotBytes(vm, 1, &length);
-    size_t offset = (size_t) MSCGetSlotDouble(vm, 2);
-    uv_fs_t *request = createRequest(MSCGetSlotHandle(vm, 3));
+    const char *bytes = MSCGetSlotBytes(djuru, 1, &length);
+    size_t offset = (size_t) MSCGetSlotDouble(djuru, 2);
+    uv_fs_t *request = createRequest(MSCGetSlotHandle(djuru, 3));
 
     FileRequestData *data = (FileRequestData *) request->data;
 
@@ -387,70 +387,70 @@ void fileWriteBytes(MVM *vm) {
                 fileWriteBytesCallback);
 }
 
-void statPath(MVM *vm) {
-    const char *path = MSCGetSlotString(vm, 1);
-    uv_fs_t *request = createRequest(MSCGetSlotHandle(vm, 2));
+void statPath(Djuru *djuru) {
+    const char *path = MSCGetSlotString(djuru, 1);
+    uv_fs_t *request = createRequest(MSCGetSlotHandle(djuru, 2));
     uv_fs_stat(getLoop(), request, path, statCallback);
 }
 
-void statBlockCount(MVM *vm) {
-    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotDouble(vm, 0, (double) stat->st_blocks);
+void statBlockCount(Djuru *djuru) {
+    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotDouble(djuru, 0, (double) stat->st_blocks);
 }
 
-void statBlockSize(MVM *vm) {
-    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotDouble(vm, 0, (double) stat->st_blksize);
+void statBlockSize(Djuru *djuru) {
+    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotDouble(djuru, 0, (double) stat->st_blksize);
 }
 
-void statDevice(MVM *vm) {
-    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotDouble(vm, 0, (double) stat->st_dev);
+void statDevice(Djuru *djuru) {
+    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotDouble(djuru, 0, (double) stat->st_dev);
 }
 
-void statGroup(MVM *vm) {
-    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotDouble(vm, 0, (double) stat->st_gid);
+void statGroup(Djuru *djuru) {
+    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotDouble(djuru, 0, (double) stat->st_gid);
 }
 
-void statInode(MVM *vm) {
-    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotDouble(vm, 0, (double) stat->st_ino);
+void statInode(Djuru *djuru) {
+    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotDouble(djuru, 0, (double) stat->st_ino);
 }
 
-void statLinkCount(MVM *vm) {
-    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotDouble(vm, 0, (double) stat->st_nlink);
+void statLinkCount(Djuru *djuru) {
+    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotDouble(djuru, 0, (double) stat->st_nlink);
 }
 
-void statMode(MVM *vm) {
-    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotDouble(vm, 0, (double) stat->st_mode);
+void statMode(Djuru *djuru) {
+    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotDouble(djuru, 0, (double) stat->st_mode);
 }
 
-void statSize(MVM *vm) {
-    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotDouble(vm, 0, (double) stat->st_size);
+void statSize(Djuru *djuru) {
+    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotDouble(djuru, 0, (double) stat->st_size);
 }
 
-void statSpecialDevice(MVM *vm) {
-    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotDouble(vm, 0, (double) stat->st_rdev);
+void statSpecialDevice(Djuru *djuru) {
+    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotDouble(djuru, 0, (double) stat->st_rdev);
 }
 
-void statUser(MVM *vm) {
-    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotDouble(vm, 0, (double) stat->st_uid);
+void statUser(Djuru *djuru) {
+    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotDouble(djuru, 0, (double) stat->st_uid);
 }
 
-void statIsDirectory(MVM *vm) {
-    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotBool(vm, 0, S_ISDIR(stat->st_mode));
+void statIsDirectory(Djuru *djuru) {
+    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotBool(djuru, 0, S_ISDIR(stat->st_mode));
 }
 
-void statIsFile(MVM *vm) {
-    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotBool(vm, 0, S_ISREG(stat->st_mode));
+void statIsFile(Djuru *djuru) {
+    uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotBool(djuru, 0, S_ISREG(stat->st_mode));
 }
 
 // Sets up the stdin stream if not already initialized.
@@ -472,14 +472,14 @@ static void initStdin() {
     }
 }
 
-void stdinIsRaw(MVM *vm) {
-    MSCSetSlotBool(vm, 0, isStdinRaw);
+void stdinIsRaw(Djuru *djuru) {
+    MSCSetSlotBool(djuru, 0, isStdinRaw);
 }
 
-void stdinIsRawSet(MVM *vm) {
+void stdinIsRawSet(Djuru *djuru) {
     initStdin();
 
-    isStdinRaw = MSCGetSlotBool(vm, 1);
+    isStdinRaw = MSCGetSlotBool(djuru, 1);
 
     if (uv_guess_handle(stdinDescriptor) == UV_TTY) {
         uv_tty_t *handle = (uv_tty_t *) stdinStream;
@@ -490,20 +490,20 @@ void stdinIsRawSet(MVM *vm) {
     }
 }
 
-void stdinIsTerminal(MVM *vm) {
+void stdinIsTerminal(Djuru *djuru) {
     initStdin();
-    MSCSetSlotBool(vm, 0, uv_guess_handle(stdinDescriptor) == UV_TTY);
+    MSCSetSlotBool(djuru, 0, uv_guess_handle(stdinDescriptor) == UV_TTY);
 }
 
-void stderrWrite(MVM *vm) {
-    const char *s = MSCGetSlotString(vm, 1);
+void stderrWrite(Djuru *djuru) {
+    const char *s = MSCGetSlotString(djuru, 1);
     fprintf(stderr, "%s", s);
 }
 
 
-void stdoutFlush(MVM *vm) {
+void stdoutFlush(Djuru *djuru) {
     fflush(stdout);
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
 
 static void allocCallback(uv_handle_t *handle, size_t suggestedSize,
@@ -515,24 +515,24 @@ static void allocCallback(uv_handle_t *handle, size_t suggestedSize,
 
 static void stdinReadCallback(uv_stream_t *stream, ssize_t numRead,
                               const uv_buf_t *buffer) {
-    MVM *vm = getVM();
+    Djuru *djuru = getCurrentThread();
 
     if (stdinClass == NULL) {
-        MSCEnsureSlots(vm, 1);
-        MSCGetVariable(vm, "io", "Stdin", 0);
-        stdinClass = MSCGetSlotHandle(vm, 0);
+        MSCEnsureSlots(djuru, 1);
+        MSCGetVariable(djuru, "io", "Stdin", 0);
+        stdinClass = MSCGetSlotHandle(djuru, 0);
     }
 
     if (stdinOnData == NULL) {
-        stdinOnData = MSCMakeCallHandle(vm, "onData_(_)");
+        stdinOnData = MSCMakeCallHandle(getVM(), "onData_(_)");
     }
 
     // If stdin was closed, send null to let io.msc know.
     if (numRead == UV_EOF) {
-        MSCEnsureSlots(vm, 2);
-        MSCSetSlotHandle(vm, 0, stdinClass);
-        MSCSetSlotNull(vm, 1);
-        MSCCall(vm, stdinOnData);
+        MSCEnsureSlots(djuru, 2);
+        MSCSetSlotHandle(djuru, 0, stdinClass);
+        MSCSetSlotNull(djuru, 1);
+        MSCCall(djuru, stdinOnData);
 
         shutdownStdin();
         return;
@@ -543,21 +543,21 @@ static void stdinReadCallback(uv_stream_t *stream, ssize_t numRead,
     // TODO: Having to copy the bytes here is a drag. It would be good if Mosc's
     // embedding API supported a way to *give* it bytes that were previously
     // allocated using Mosc's own allocator.
-    MSCEnsureSlots(vm, 2);
-    MSCSetSlotHandle(vm, 0, stdinClass);
-    MSCSetSlotBytes(vm, 1, buffer->base, numRead);
-    MSCCall(vm, stdinOnData);
+    MSCEnsureSlots(djuru, 2);
+    MSCSetSlotHandle(djuru, 0, stdinClass);
+    MSCSetSlotBytes(djuru, 1, buffer->base, numRead);
+    MSCCall(djuru, stdinOnData);
 
     // TODO: Likewise, freeing this after we resume is lame.
     free(buffer->base);
 }
 
-void stdinReadStart(MVM *vm) {
+void stdinReadStart(Djuru *djuru) {
     initStdin();
     uv_read_start(stdinStream, allocCallback, stdinReadCallback);
     // TODO: Check return.
 }
 
-void stdinReadStop(MVM *vm) {
+void stdinReadStop(Djuru *djuru) {
     uv_read_stop(stdinStream);
 }

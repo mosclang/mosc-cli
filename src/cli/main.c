@@ -7,8 +7,7 @@ int main(int argc, const char *argv[]) {
 
     osSetArguments(argc, argv);
 
-    MSCInterpretResult result;
-    runCLI();
+    MSCInterpretResult result = runCLI();
     if (getExitCode() != 0) {
         return getExitCode();
     }

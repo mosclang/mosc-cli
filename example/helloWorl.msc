@@ -60,7 +60,7 @@ nin server = HttpServer
                 .ws("/chat", {
                     maxPayloadLength: 16 * 1024 * 1024,
                     # compression: Websocket.
-                    idleTimeout: 10,
+                    idleTimeout: 30,
                     open: Tii.kura {ws =>
                         A.yira("Connection from a websocket")
                     },
@@ -78,6 +78,7 @@ nin server = HttpServer
                     },
                     message: Tii.kura { ws, message, code =>
                         A.yira("New Message $message")
+                        WaatiMassa.sunogo(4000)
                         ws.send(message, code)
                     },
                     subscription: Tii.kura {ws, topic, count, oldCount =>

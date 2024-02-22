@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <Value.h>
 
 #include "uv.h"
 
@@ -25,7 +26,7 @@ static MSCHandle* resumeError;
 
 static void resume(MSCHandle* method)
 {
-    MSCInterpretResult result = MSCCall(getVM(), method);
+    MSCInterpretResult result = MSCCall(getCurrentThread(), method);
 
     // If a runtime error occurs in response to an async operation and nothing
     // catches the error in the fiber, then exit the CLI.
@@ -36,37 +37,25 @@ static void resume(MSCHandle* method)
     }
 }
 
-void schedulerCaptureMethods(MVM* vm)
+void schedulerCaptureMethods(Djuru* djuru)
 {
-    MSCEnsureSlots(vm, 1);
-    MSCGetVariable(vm, "scheduler", "DogodaBaga", 0);
-    schedulerClass = MSCGetSlotHandle(vm, 0);
+    MSCEnsureSlots(djuru, 1);
+    MSCGetVariable(djuru, "scheduler", "DogodaBaga", 0);
+    schedulerClass = MSCGetSlotHandle(djuru, 0);
 
-    resume1 = MSCMakeCallHandle(vm, "resume_(_)");
-    resume2 = MSCMakeCallHandle(vm, "resume_(_,_)");
-    resumeError = MSCMakeCallHandle(vm, "resumeError_(_,_)");
+    resume1 = MSCMakeCallHandle(djuru->vm, "resume_(_)");
+    resume2 = MSCMakeCallHandle(djuru->vm, "resume_(_,_)");
+    resumeError = MSCMakeCallHandle(djuru->vm, "resumeError_(_,_)");
 }
 
-void schedulerResumeAndKeepHandle(MSCHandle* fiber, bool hasArgument)
-{
-    MVM* vm = getVM();
-    MSCEnsureSlots(vm, 2 + (hasArgument ? 1 : 0));
-    MSCSetSlotHandle(vm, 0, schedulerClass);
-    MSCSetSlotHandle(vm, 1, fiber);
-    // MSCReleaseHandle(vm, fiber);
-
-    // If we don't need to wait for an argument to be stored on the stack, resume
-    // it now.
-    if (!hasArgument) resume(resume1);
-}
 
 void schedulerResume(MSCHandle* fiber, bool hasArgument)
 {
-    MVM* vm = getVM();
-    MSCEnsureSlots(vm, 2 + (hasArgument ? 1 : 0));
-    MSCSetSlotHandle(vm, 0, schedulerClass);
-    MSCSetSlotHandle(vm, 1, fiber);
-    MSCReleaseHandle(vm, fiber);
+    Djuru* djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 2 + (hasArgument ? 1 : 0));
+    MSCSetSlotHandle(djuru, 0, schedulerClass);
+    MSCSetSlotHandle(djuru, 1, fiber);
+    MSCReleaseHandle(djuru, fiber);
 
     // If we don't need to wait for an argument to be stored on the stack, resume
     // it now.
@@ -81,7 +70,7 @@ void schedulerFinishResume()
 void schedulerResumeError(MSCHandle* fiber, const char* error)
 {
     schedulerResume(fiber, true);
-    MSCSetSlotString(getVM(), 2, error);
+    MSCSetSlotString(getCurrentThread(), 2, error);
     resume(resumeError);
 }
 
@@ -90,9 +79,9 @@ void schedulerShutdown()
     // If the module was never loaded, we don't have anything to release.
     if (schedulerClass == NULL) return;
 
-    MVM* vm = getVM();
-    MSCReleaseHandle(vm, schedulerClass);
-    MSCReleaseHandle(vm, resume1);
-    MSCReleaseHandle(vm, resume2);
-    MSCReleaseHandle(vm, resumeError);
+    Djuru* djuru = getCurrentThread();
+    MSCReleaseHandle(djuru, schedulerClass);
+    MSCReleaseHandle(djuru, resume1);
+    MSCReleaseHandle(djuru, resume2);
+    MSCReleaseHandle(djuru, resumeError);
 }

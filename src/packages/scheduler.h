@@ -16,7 +16,6 @@
 //
 // Otherwise, the call resumes immediately. Releases [fiber] when called.
 void schedulerResume(MSCHandle* fiber, bool hasArgument);
-void schedulerResumeAndKeepHandle(MSCHandle* fiber, bool hasArgument);
 
 void schedulerFinishResume();
 void schedulerResumeError(MSCHandle* fiber, const char* error);

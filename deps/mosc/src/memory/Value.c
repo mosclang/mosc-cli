@@ -184,6 +184,7 @@ Class *MSCSingleClass(MVM *vm, int numFields, String *name) {
     classObj->superclass = NULL;
     classObj->numFields = numFields;
     classObj->name = name;
+    classObj->attributes = NULL_VAL;
 
     MSCPushRoot(vm->gc, (Object *) classObj);
     MSCInitMethodBuffer(&classObj->methods);
@@ -241,6 +242,8 @@ void MSCBlackenClass(Class *thisClass, MVM *vm) {
     }
 
     MSCGrayObject((Object *) thisClass->name, vm);
+
+    if(!IS_NULL(thisClass->attributes)) MSCGrayObject(AS_OBJ(thisClass->attributes), vm);
 
     // Keep track of how much memory is still in use.
     vm->gc->bytesAllocated += sizeof(Class);
@@ -301,7 +304,7 @@ void MSCInitClass(Class *thisClass, MVM *vm, String *name, int numOfFields) {
     thisClass->name = name;
     thisClass->superclass = NULL;
     thisClass->name = name;
-    // thisClass->attributes = NULL_VAL;
+    thisClass->attributes = NULL_VAL;
 
     MSCPushRoot(vm->gc, (Object *) thisClass);
     MSCInitMethodBuffer(&thisClass->methods);
@@ -365,6 +368,8 @@ void MSCFreeObject(Object *thisObj, MVM *vm) {
     switch (thisObj->type) {
         case OBJ_CLASS:
             MSCFreeMethodBuffer(vm, &((Class *) thisObj)->methods);
+            MSCFreeFieldBuffer(vm, &((Class *) thisObj)->fields);
+
             break;
 
         case OBJ_THREAD: {
@@ -500,8 +505,8 @@ Djuru *MSCDjuruFrom(MVM *vm, Closure *closure) {
     MSCPushRoot(vm->gc, (Object *) thread);
 
     Value *stack = ALLOCATE_ARRAY(vm, Value, stackCapacity);
-    thread->stack = stack;
-    thread->stackTop = thread->stack;
+    thread->vm = vm;
+    thread->stack = thread->stackTop = thread->stackStart = stack;
     thread->stackCapacity = stackCapacity;
 
     thread->frames = frames;
@@ -512,10 +517,11 @@ Djuru *MSCDjuruFrom(MVM *vm, Closure *closure) {
     thread->caller = NULL;
     thread->error = NULL_VAL;
     thread->state = DJURU_OTHER;
+    thread->entryState = DJURU_ROOT;
 
     if (closure != NULL) {
         // Initialize the first call frame.
-        MSCAppendCallFrame(thread, closure, thread->stack);
+        MSCPushCallFrame(thread, closure, thread->stack);
 
         // The first slot always holds the closure.
         thread->stackTop[0] = OBJ_VAL(closure);
@@ -558,12 +564,13 @@ void MSCBlackenDjuru(Djuru *djuru, MVM *vm) {
 }
 
 
-void MSCEnsureStack(Djuru *djuru, MVM *vm, int needed) {
+void MSCEnsureStack(Djuru *djuru, int needed) {
+
     if (djuru->stackCapacity >= needed) return;
 
     int capacity = powerOf2Ceil(needed);
     Value *oldStack = djuru->stack;
-    djuru->stack = (Value *) MSCReallocate(vm->gc, djuru->stack,
+    djuru->stack = (Value *) MSCReallocate(djuru->vm->gc, djuru->stack,
                                            sizeof(Value) * djuru->stackCapacity,
                                            sizeof(Value) * capacity);
     djuru->stackCapacity = capacity;
@@ -574,11 +581,6 @@ void MSCEnsureStack(Djuru *djuru, MVM *vm, int needed) {
     // calculated because pointer subtraction is only well-defined within a
     // single array, hence the slightly redundant-looking arithmetic below.
     if (djuru->stack != oldStack) {
-        // Top of the stack.
-        if (vm->apiStack >= oldStack && vm->apiStack <= djuru->stackTop) {
-            vm->apiStack = djuru->stack + (vm->apiStack - oldStack);
-        }
-
         // Stack pointer for each call frame.
         for (int i = 0; i < djuru->numOfFrames; i++) {
             CallFrame *frame = &djuru->frames[i];
@@ -593,26 +595,23 @@ void MSCEnsureStack(Djuru *djuru, MVM *vm, int needed) {
         }
 
         djuru->stackTop = djuru->stack + (djuru->stackTop - oldStack);
+        djuru->stackStart = djuru->stack + (djuru->stackStart - oldStack);
     }
 }
 
-// Adds a new [CallFrame] to [fiber] invoking [closure] whose stack starts at
-// [stackStart].
-void MSCAppendCallFrame(Djuru *djuru, Closure *closure, Value *stackStart) {
-
-    // The caller should have ensured we already have enough capacity.
-    ASSERT(djuru->frameCapacity > djuru->numOfFrames, "No memory for call frame.");
-
-    CallFrame *frame = &djuru->frames[djuru->numOfFrames++];
-    frame->stackStart = stackStart;
-    frame->closure = closure;
-    frame->ip = closure->fn->code.data;
-
+void MSCEnsureFrames(Djuru* djuru, int needed) {
+    if(djuru->frameCapacity >= needed) {
+        return;
+    }
+    int capacity = powerOf2Ceil(needed);
+    djuru->frames = (CallFrame *) MSCReallocate(djuru->vm->gc, djuru->frames,
+                                           sizeof(CallFrame) * djuru->frameCapacity,
+                                           sizeof(CallFrame) * capacity);
+    djuru->frameCapacity = capacity;
 }
 
-bool MSCHasError(Djuru *djuru) {
-    return !IS_NULL(djuru->error);
-}
+
+
 
 void MSCBlackenExtern(Extern *externObj, MVM *vm) {
     // Object::blacken(vm);

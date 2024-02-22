@@ -24,9 +24,9 @@ static void timerCallback(uv_timer_t *handle) {
     schedulerResume(fiber, false);
 }
 
-void timerStartTimer(MVM *vm) {
-    int milliseconds = (int) MSCGetSlotDouble(vm, 1);
-    MSCHandle *fiber = MSCGetSlotHandle(vm, 2);
+void timerStartTimer(Djuru *djuru) {
+    int milliseconds = (int) MSCGetSlotDouble(djuru, 1);
+    MSCHandle *fiber = MSCGetSlotHandle(djuru, 2);
 
     // Store the fiber to resume when the timer completes.
     uv_timer_t *handle = (uv_timer_t *) malloc(sizeof(uv_timer_t));

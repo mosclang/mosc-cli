@@ -50,6 +50,7 @@ ModuleRegistry nafamawModules[] =
                         CLASS(KuluDumare)
                                         STATIC_METHOD("hasMethod(_,_)", mirrorClassMirrorHasMethod)
                                         STATIC_METHOD("methodNames(_)", mirrorClassMirrorMethodNames)
+                                        STATIC_METHOD("methods_(_)", mirrorClassMirrorMethods)
                         END_CLASS
                         CLASS(TiidenDumare)
                                         STATIC_METHOD("boundToClass_(_)", mirrorMethodMirrorBoundToClass_)

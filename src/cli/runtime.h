@@ -18,8 +18,11 @@ MSCInterpretResult runRepl();
 
 MSCInterpretResult runCLI();
 
+Djuru* getCurrentThread();
+
 // Gets the currently running VM.
 MVM* getVM();
+
 
 // Gets the event loop the VM is using.
 uv_loop_t* getLoop();
@@ -36,7 +39,7 @@ void setExitCode(int exitCode);
 // This must be called before calling [createVM()].
 void setTestCallbacks(MSCBindExternMethodFn bindMethod,
                       MSCBindExternClassFn bindClass,
-                      void (*afterLoad)(MVM* vm));
+                      void (*afterLoad)(Djuru* vm));
 bool reportError(MVM* vm, MSCError type,
                  const char* module, int line, const char* message);
 

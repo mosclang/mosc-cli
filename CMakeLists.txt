@@ -17,13 +17,16 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -Wextra -flto -fPIC")
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
+
+
+set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Os -g")
 
-set(CMAKE_C_FLAGS "-std=c11 -Wall -Wextra -flto -fPIC")
+set(CMAKE_C_FLAGS "-std=c11 -Wall -Wextra")
+set(CMAKE_C_FLAGS_DEBUG "-g -O0")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 set(CMAKE_C_FLAGS_MINSIZEREL "-Os")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Os -g")
@@ -34,6 +37,10 @@ set(MSC_FLAGS)
 set(MSC_DEPS)
 set(MSC_DEFS LIBUS_USE_OPENSSL LIBUS_USE_LIBUV DEBUG)
 set(LINK_OPTIONS)
+
+if(CMAKE_BUILD_TYPE STREQUAL Debug)
+    set(MSC_DEFS ${MSC_DEFS} DEBUG=1 MSC_DEBUG_TRACE_INSTRUCTIONS=0)
+endif()
 
 # Utility function which will only add compiler flags if supported
 INCLUDE(CheckCCompilerFlag)
@@ -228,6 +235,10 @@ TARGET_INCLUDE_DIRECTORIES(moscc PUBLIC ${MSC_INCLUDE_DIRS})
 TARGET_COMPILE_OPTIONS(moscc PRIVATE ${MSC_FLAGS})
 TARGET_LINK_LIBRARIES(moscc PRIVATE ${MSC_DEPS})
 
+set_target_properties(moscc PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG ${PROJECT_SOURCE_DIR}/bin/
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE ${PROJECT_SOURCE_DIR}/bin/
+        )
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     set_target_properties(moscc PROPERTIES SUFFIX "_d")

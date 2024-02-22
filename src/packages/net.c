@@ -181,13 +181,13 @@ static void uwsOnData(uws_res_t *res, const char *chunk, size_t chunk_length, bo
     if (is_end) {
 
         parser->body = byteArrayListAppend(parser->body, chunk, chunk_length);
-        MVM *vm = getVM();
-        MSCEnsureSlots(vm, 3);
+        Djuru *djuru = getCurrentThread();
+        MSCEnsureSlots(djuru, 3);
         if (parser->body == NULL) {
-            MSCSetSlotNull(vm, 2);
+            MSCSetSlotNull(djuru, 2);
         } else {
             char *bytes = toByteArray(parser->body);
-            MSCSetSlotBytes(vm, 2, bytes, strlen(bytes));
+            MSCSetSlotBytes(djuru, 2, bytes, strlen(bytes));
             free(bytes);
         }
         MSCHandle *handler = parser->handler;
@@ -201,13 +201,13 @@ static void uwsOnData(uws_res_t *res, const char *chunk, size_t chunk_length, bo
 
 static void uwsHandler(uws_res_t *res, uws_req_t *req, void *user_data) {
 
-    MVM *vm = getVM();
+    Djuru *djuru = getCurrentThread();
     struct HttpRequestBind *request = (struct HttpRequestBind *) user_data;
-    MSCEnsureSlots(vm, 2);
+    MSCEnsureSlots(djuru, 2);
     // create a new request instance
-    MSCSetSlotHandle(vm, 0, request->handler);
-    MSCSetSlotHandle(vm, 1, httpReqResClass);
-    struct HttpRequestResponse *reqRes = MSCSetSlotNewExtern(vm, 1, 1, sizeof(struct HttpRequestResponse));
+    MSCSetSlotHandle(djuru, 0, request->handler);
+    MSCSetSlotHandle(djuru, 1, httpReqResClass);
+    struct HttpRequestResponse *reqRes = MSCSetSlotNewExtern(djuru, 1, 1, sizeof(struct HttpRequestResponse));
     reqRes->ssl = request->server->ssl;
     reqRes->res = res;
     reqRes->req = req;
@@ -217,64 +217,64 @@ static void uwsHandler(uws_res_t *res, uws_req_t *req, void *user_data) {
 
     uws_res_on_aborted(reqRes->ssl, reqRes->res, uwsOnReqAbort, reqRes);
 
-    MSCCall(vm, fnCall1);
+    MSCCall(djuru, fnCall1);
 }
 
 
 
-void httpServerReqBody(MVM *vm) {
+void httpServerReqBody(Djuru *djuru) {
 
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     struct HttpOnDataParser *parser = malloc(sizeof(struct HttpOnDataParser));
 
     parser->reqRes = reqRes;
     parser->body = NULL;
     parser->data = NULL;
-    parser->handler = MSCGetSlotHandle(vm, 1);
+    parser->handler = MSCGetSlotHandle(djuru, 1);
     uws_res_on_data(reqRes->ssl, reqRes->res, uwsOnData, parser);
 }
 
-void httpServerReqParam(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
-    unsigned short index = (unsigned short) MSCGetSlotDouble(vm, 1);
+void httpServerReqParam(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
+    unsigned short index = (unsigned short) MSCGetSlotDouble(djuru, 1);
     const char *value;
     size_t size = uws_req_get_parameter(reqRes->req, index, &value);
-    MSCSetSlotBytes(vm, 0, value, size);
+    MSCSetSlotBytes(djuru, 0, value, size);
 }
-void httpServerReqRemoteAddress(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerReqRemoteAddress(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     const char *value;
     size_t size = uws_res_get_remote_address_as_text(reqRes->ssl, reqRes->res, &value);
 
-    MSCSetSlotBytes(vm, 0, value, size);
+    MSCSetSlotBytes(djuru, 0, value, size);
 }
 
-void httpServerReqUrl(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerReqUrl(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     const char *value;
     size_t size = uws_req_get_url(reqRes->req, &value);
-    MSCSetSlotBytes(vm, 0, value, size);
+    MSCSetSlotBytes(djuru, 0, value, size);
 }
 
-void httpServerReqFullUrl(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerReqFullUrl(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     const char *value;
     size_t size = uws_req_get_full_url(reqRes->req, &value);
-    MSCSetSlotBytes(vm, 0, value, size);
+    MSCSetSlotBytes(djuru, 0, value, size);
 }
 
-void httpServerReqQuery(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerReqQuery(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     const char *value;
     int size;
-    const char *key = MSCGetSlotBytes(vm, 1, &size);
+    const char *key = MSCGetSlotBytes(djuru, 1, &size);
     size_t len = uws_req_get_query(reqRes->req, key, (size_t) size, &value);
-    MSCSetSlotBytes(vm, 0, value, len);
+    MSCSetSlotBytes(djuru, 0, value, len);
 }
-static void freeHandleChain(MVM* vm, Chain* chain) {
+static void freeHandleChain(Djuru* djuru, Chain* chain) {
     Chain* it = chain;
     while (it) {
-        MSCReleaseHandle(vm, (MSCHandle*)it->data);
+        MSCReleaseHandle(djuru, (MSCHandle*)it->data);
         Chain* tmp = it;
         it = it->next;
         free(tmp);
@@ -282,232 +282,232 @@ static void freeHandleChain(MVM* vm, Chain* chain) {
 }
 void httpServerReqDestroy(void *data) {
     struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *)data;
-    MVM* vm = getVM();
+    Djuru* djuru = getCurrentThread();
     if(reqRes->onAbort) {
-        freeHandleChain(vm, reqRes->onAbort);
+        freeHandleChain(djuru, reqRes->onAbort);
         reqRes->onAbort = NULL;
     }
     if(reqRes->onWritable) {
-        freeHandleChain(vm, reqRes->onWritable);
+        freeHandleChain(djuru, reqRes->onWritable);
         reqRes->onWritable = NULL;
     }
 }
 
-void httpServerReqHeader(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerReqHeader(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     const char *value;
     int valueSize;
-    const char *key = MSCGetSlotBytes(vm, 1, &valueSize);
+    const char *key = MSCGetSlotBytes(djuru, 1, &valueSize);
     size_t size = uws_req_get_header(reqRes->req, key, (size_t) valueSize, &value);
-    MSCSetSlotBytes(vm, 0, value, size);
+    MSCSetSlotBytes(djuru, 0, value, size);
 }
 
 static void reqForEachHeaderHandler(const char *header_name, size_t header_name_size, const char *header_value,
                                     size_t header_value_size, void *user_data) {
-    MVM *vm = (MVM *) user_data;
-    MSCSetSlotNewMap(vm, 1);
+    Djuru *djuru = (Djuru *) user_data;
+    MSCSetSlotNewMap(djuru, 1);
     // push header name
-    MSCSetSlotString(vm, 2, "name");
-    MSCSetSlotBytes(vm, 3, header_name, header_name_size);
-    MSCSetMapValue(vm, 1, 2, 3);
+    MSCSetSlotString(djuru, 2, "name");
+    MSCSetSlotBytes(djuru, 3, header_name, header_name_size);
+    MSCSetMapValue(djuru, 1, 2, 3);
     // push header value
-    MSCSetSlotString(vm, 2, "value");
-    MSCSetSlotBytes(vm, 3, header_value, header_value_size);
-    MSCSetMapValue(vm, 1, 2, 3);
-    MSCInsertInList(vm, 0, -1, 1);
+    MSCSetSlotString(djuru, 2, "value");
+    MSCSetSlotBytes(djuru, 3, header_value, header_value_size);
+    MSCSetMapValue(djuru, 1, 2, 3);
+    MSCInsertInList(djuru, 0, -1, 1);
 }
 
-void httpServerReqHeaders(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotNewList(vm, 0);
-    MSCEnsureSlots(vm, 4);
-    uws_req_for_each_header(reqRes->req, reqForEachHeaderHandler, vm);
+void httpServerReqHeaders(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotNewList(djuru, 0);
+    MSCEnsureSlots(djuru, 4);
+    uws_req_for_each_header(reqRes->req, reqForEachHeaderHandler, djuru);
 }
 
-void httpServerReqMethod(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerReqMethod(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     const char *value;
     size_t size = uws_req_get_method(reqRes->req, &value);
-    MSCSetSlotBytes(vm, 0, value, size);
+    MSCSetSlotBytes(djuru, 0, value, size);
 }
 
-void httpServerReqMethodCaseSensitive(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerReqMethodCaseSensitive(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     const char *value;
     size_t size =  uws_req_get_case_sensitive_method(reqRes->req, &value);
-    MSCSetSlotBytes(vm, 0, value, size);
+    MSCSetSlotBytes(djuru, 0, value, size);
 }
 
 static void reqOnAbortHandler(uws_res_t *res, void *optional_data) {
     MSCHandle *cb = (MSCHandle *) optional_data;
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 1);
-    MSCSetSlotHandle(vm, 0, cb);
-    MSCReleaseHandle(vm, cb);
-    MSCCall(vm, fnCall);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 1);
+    MSCSetSlotHandle(djuru, 0, cb);
+    MSCReleaseHandle(djuru, cb);
+    MSCCall(djuru, fnCall);
 }
 
 static void reqOnDataHandler(uws_res_t *res, const char *chunk, size_t chunk_length, bool is_end, void *optional_data) {
     MSCHandle *cb = (MSCHandle *) optional_data;
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 3);
-    MSCSetSlotHandle(vm, 0, cb);
-    MSCSetSlotBytes(vm, 1, chunk, chunk_length);
-    MSCSetSlotBool(vm, 2, is_end);
-    MSCCall(vm, fnCall2);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 3);
+    MSCSetSlotHandle(djuru, 0, cb);
+    MSCSetSlotBytes(djuru, 1, chunk, chunk_length);
+    MSCSetSlotBool(djuru, 2, is_end);
+    MSCCall(djuru, fnCall2);
     if (is_end) {
-        MSCReleaseHandle(vm, cb);
+        MSCReleaseHandle(djuru, cb);
     }
 }
 
 static bool reqOnWritableHandler(uws_res_t *res, uintmax_t offset, void *optional_data) {
     MSCHandle *cb = (MSCHandle *) optional_data;
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 2);
-    MSCSetSlotDouble(vm, 1, offset);
-    MSCSetSlotHandle(vm, 0, cb);
-    MSCInterpretResult result = MSCCall(vm, fnCall1);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 2);
+    MSCSetSlotDouble(djuru, 1, offset);
+    MSCSetSlotHandle(djuru, 0, cb);
+    MSCInterpretResult result = MSCCall(djuru, fnCall1);
     if (result != RESULT_SUCCESS) {
         return false;
     }
-    if (MSCGetSlotType(vm, 0) != MSC_TYPE_BOOL) {
+    if (MSCGetSlotType(djuru, 0) != MSC_TYPE_BOOL) {
         return false;
     }
-    return MSCGetSlotBool(vm, 0);
+    return MSCGetSlotBool(djuru, 0);
 }
 
-void httpServerReqOnAbort(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
-    MSCHandle *cb = MSCGetSlotHandle(vm, 1);
+void httpServerReqOnAbort(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
+    MSCHandle *cb = MSCGetSlotHandle(djuru, 1);
     reqRes->onAbort = insertInChain(reqRes->onAbort, cb);
     uws_res_on_aborted(reqRes->ssl, reqRes->res, reqOnAbortHandler, cb);
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
 
-void httpServerReqOnData(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
-    MSCHandle *cb = MSCGetSlotHandle(vm, 1);
+void httpServerReqOnData(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
+    MSCHandle *cb = MSCGetSlotHandle(djuru, 1);
     uws_res_on_data(reqRes->ssl, reqRes->res, reqOnDataHandler, cb);
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
-void httpServerReqSetYield(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
-    uws_req_set_yield(reqRes->req, MSCGetSlotBool(vm, 1));
-    MSCSetSlotNull(vm, 0);
+void httpServerReqSetYield(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
+    uws_req_set_yield(reqRes->req, MSCGetSlotBool(djuru, 1));
+    MSCSetSlotNull(djuru, 0);
 }
-void httpServerReqYield(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotBool(vm, 0, uws_req_get_yield(reqRes->req));
+void httpServerReqYield(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotBool(djuru, 0, uws_req_get_yield(reqRes->req));
 }
-void httpServerReqIsAncient(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotBool(vm, 0, uws_req_is_ancient(reqRes->req));
+void httpServerReqIsAncient(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotBool(djuru, 0, uws_req_is_ancient(reqRes->req));
 }
 
-void httpServerResOnWritable(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
-    MSCHandle *cb = MSCGetSlotHandle(vm, 1);
+void httpServerResOnWritable(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
+    MSCHandle *cb = MSCGetSlotHandle(djuru, 1);
     reqRes->onWritable = insertInChain(reqRes->onWritable, cb);
     uws_res_on_writable(reqRes->ssl, reqRes->res, reqOnWritableHandler, cb);
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
 
-void httpServerResEnd(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerResEnd(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     int size;
-    const char *data = MSCGetSlotBytes(vm, 1, &size);
-    bool closeConnection = MSCGetSlotBool(vm, 2);
+    const char *data = MSCGetSlotBytes(djuru, 1, &size);
+    bool closeConnection = MSCGetSlotBool(djuru, 2);
     uws_res_end(reqRes->ssl, reqRes->res, data, (size_t) size, closeConnection);
 
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
 
-void httpServerResEndWithoutBody(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
-    bool closeConnection = MSCGetSlotBool(vm, 1);
+void httpServerResEndWithoutBody(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
+    bool closeConnection = MSCGetSlotBool(djuru, 1);
     uws_res_end_without_body(reqRes->ssl, reqRes->res, closeConnection);
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
 
-void httpServerResPause(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerResPause(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     uws_res_pause(reqRes->ssl, reqRes->res);
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
 
-void httpServerResResume(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerResResume(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     uws_res_resume(reqRes->ssl, reqRes->res);
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
 
-void httpServerResWrite(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerResWrite(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     int size;
-    const char *data = MSCGetSlotBytes(vm, 1, &size);
+    const char *data = MSCGetSlotBytes(djuru, 1, &size);
     uws_res_write(reqRes->ssl, reqRes->res, data, (size_t) size);
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
 
-void httpServerResWriteContinue(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerResWriteContinue(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     uws_res_write_continue(reqRes->ssl, reqRes->res);
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
 
-void httpServerResWriteStatus(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerResWriteStatus(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     int size;
 
-    const char *status = MSCGetSlotBytes(vm, 1, &size);
+    const char *status = MSCGetSlotBytes(djuru, 1, &size);
     uws_res_write_status(reqRes->ssl, reqRes->res, status, (size_t) size);
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
 
-void httpServerResWriteHeader(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerResWriteHeader(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     int keySize;
-    const char *key = MSCGetSlotBytes(vm, 1, &keySize);
+    const char *key = MSCGetSlotBytes(djuru, 1, &keySize);
     int valueSize;
-    const char *value = MSCGetSlotBytes(vm, 2, &valueSize);
+    const char *value = MSCGetSlotBytes(djuru, 2, &valueSize);
     uws_res_write_header(reqRes->ssl, reqRes->res, key, (size_t) keySize, value, (size_t) valueSize);
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
 
-void httpServerResWriteHeaderInt(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerResWriteHeaderInt(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     int keySize;
-    const char *key = MSCGetSlotBytes(vm, 1, &keySize);
-    uint64_t value = (uint64_t) MSCGetSlotDouble(vm, 2);
+    const char *key = MSCGetSlotBytes(djuru, 1, &keySize);
+    uint64_t value = (uint64_t) MSCGetSlotDouble(djuru, 2);
     uws_res_write_header_int(reqRes->ssl, reqRes->res, key, (size_t) keySize, value);
-    MSCSetSlotNull(vm, 0);
+    MSCSetSlotNull(djuru, 0);
 }
 
 
-void httpServerResHasResponded(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
-    MSCSetSlotBool(vm, 0, uws_res_has_responded(reqRes->ssl, reqRes->res));
+void httpServerResHasResponded(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotBool(djuru, 0, uws_res_has_responded(reqRes->ssl, reqRes->res));
 }
 
 
-void httpServerResTryEnd(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerResTryEnd(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     int size;
-    const char *data = MSCGetSlotBytes(vm, 1, &size);
-    uintmax_t total = (uintmax_t) MSCGetSlotDouble(vm, 2);
-    bool closeConnection = MSCGetSlotBool(vm, 3);
+    const char *data = MSCGetSlotBytes(djuru, 1, &size);
+    uintmax_t total = (uintmax_t) MSCGetSlotDouble(djuru, 2);
+    bool closeConnection = MSCGetSlotBool(djuru, 3);
     uws_try_end_result_t resut = uws_res_try_end(reqRes->ssl, reqRes->res, data, (size_t) size, total, closeConnection);
 
-    MSCSetSlotBool(vm, 0, resut.ok);
+    MSCSetSlotBool(djuru, 0, resut.ok);
 }
 
 static void uwsCorkRes(uws_res_t *res, void *userData) {
     struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) userData;
-    MVM *vm = getVM();
+    Djuru *djuru = getCurrentThread();
     // update reqRes with corked res
 
-    MSCSetSlotHandle(vm, 0, httpReqResClass);
-    struct HttpRequestResponse *newReqRes = MSCSetSlotNewExtern(vm, 0, 0, sizeof(struct HttpRequestResponse));
+    MSCSetSlotHandle(djuru, 0, httpReqResClass);
+    struct HttpRequestResponse *newReqRes = MSCSetSlotNewExtern(djuru, 0, 0, sizeof(struct HttpRequestResponse));
     newReqRes->ssl = reqRes->ssl;
     newReqRes->res = res;
     newReqRes->req = reqRes->req;
@@ -516,10 +516,10 @@ static void uwsCorkRes(uws_res_t *res, void *userData) {
     newReqRes->onAbort = NULL;
 }
 
-static struct HttpRequestBind *createRequest(MVM *vm) {
-    struct HttpServer *server = (struct HttpServer *) MSCGetSlotExtern(vm, 0);
+static struct HttpRequestBind *createRequest(Djuru *djuru) {
+    struct HttpServer *server = (struct HttpServer *) MSCGetSlotExtern(djuru, 0);
     struct HttpRequestBind *request = malloc(sizeof(struct HttpRequestBind));
-    request->handler = MSCGetSlotHandle(vm, 2);
+    request->handler = MSCGetSlotHandle(djuru, 2);
     request->server = server;
     request->wsHandlers = NULL;
     // add to bind list
@@ -527,8 +527,8 @@ static struct HttpRequestBind *createRequest(MVM *vm) {
     return request;
 }
 
-static struct HttpRequestBind *createWsRequest(MVM *vm) {
-    struct HttpServer *server = (struct HttpServer *) MSCGetSlotExtern(vm, 0);
+static struct HttpRequestBind *createWsRequest(Djuru *djuru) {
+    struct HttpServer *server = (struct HttpServer *) MSCGetSlotExtern(djuru, 0);
     struct HttpRequestBind *request = malloc(sizeof(struct HttpRequestBind));
     request->handler = NULL;
     request->server = server;
@@ -542,46 +542,46 @@ static struct HttpRequestBind *createWsRequest(MVM *vm) {
     request->wsHandlers->drain = NULL;
     request->wsHandlers->upgrade = NULL;
 
-    if (MSCGetSlotType(vm, 2) == MSC_TYPE_MAP) {
-        MSCSetSlotString(vm, 3, "upgrade");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) != MSC_TYPE_NULL) {
-            request->wsHandlers->upgrade = MSCGetSlotHandle(vm, 3);
+    if (MSCGetSlotType(djuru, 2) == MSC_TYPE_MAP) {
+        MSCSetSlotString(djuru, 3, "upgrade");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+            request->wsHandlers->upgrade = MSCGetSlotHandle(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "open");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) != MSC_TYPE_NULL) {
-            request->wsHandlers->open = MSCGetSlotHandle(vm, 3);
+        MSCSetSlotString(djuru, 3, "open");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+            request->wsHandlers->open = MSCGetSlotHandle(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "close");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) != MSC_TYPE_NULL) {
-            request->wsHandlers->close = MSCGetSlotHandle(vm, 3);
+        MSCSetSlotString(djuru, 3, "close");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+            request->wsHandlers->close = MSCGetSlotHandle(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "drain");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) != MSC_TYPE_NULL) {
-            request->wsHandlers->drain = MSCGetSlotHandle(vm, 3);
+        MSCSetSlotString(djuru, 3, "drain");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+            request->wsHandlers->drain = MSCGetSlotHandle(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "ping");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) != MSC_TYPE_NULL) {
-            request->wsHandlers->ping = MSCGetSlotHandle(vm, 3);
+        MSCSetSlotString(djuru, 3, "ping");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+            request->wsHandlers->ping = MSCGetSlotHandle(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "pong");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) != MSC_TYPE_NULL) {
-            request->wsHandlers->pong = MSCGetSlotHandle(vm, 3);
+        MSCSetSlotString(djuru, 3, "pong");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+            request->wsHandlers->pong = MSCGetSlotHandle(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "message");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) != MSC_TYPE_NULL) {
-            request->wsHandlers->message = MSCGetSlotHandle(vm, 3);
+        MSCSetSlotString(djuru, 3, "message");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+            request->wsHandlers->message = MSCGetSlotHandle(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "subscription");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) != MSC_TYPE_NULL) {
-            request->wsHandlers->subscription = MSCGetSlotHandle(vm, 3);
+        MSCSetSlotString(djuru, 3, "subscription");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+            request->wsHandlers->subscription = MSCGetSlotHandle(djuru, 3);
         }
     }
 
@@ -590,18 +590,19 @@ static struct HttpRequestBind *createWsRequest(MVM *vm) {
     return request;
 }
 
-void httpServerResCork(MVM *vm) {
-    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 0);
+void httpServerResCork(Djuru *djuru) {
+    struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 0);
     uws_res_cork(reqRes->ssl, reqRes->res, uwsCorkRes, reqRes);
 }
 
-void ensureHttpComponentsInit(MVM *vm) {
-    MSCGetVariable(vm, "net", "HttpReqRes", 0);
-    httpReqResClass = MSCGetSlotHandle(vm, 0);
-    MSCGetVariable(vm, "net", "HttpServer_", 0);
-    httpServerClass = MSCGetSlotHandle(vm, 0);
-    MSCGetVariable(vm, "net", "WebSocket", 0);
-    wsSocketClass = MSCGetSlotHandle(vm, 0);
+void ensureHttpComponentsInit(Djuru *djuru) {
+    MSCGetVariable(djuru, "net", "HttpReqRes", 0);
+    httpReqResClass = MSCGetSlotHandle(djuru, 0);
+    MSCGetVariable(djuru, "net", "HttpServer_", 0);
+    httpServerClass = MSCGetSlotHandle(djuru, 0);
+    MSCGetVariable(djuru, "net", "WebSocket", 0);
+    wsSocketClass = MSCGetSlotHandle(djuru, 0);
+    MVM* vm = djuru->vm;
     fnCall = MSCMakeCallHandle(vm, "weele()");
     fnCall1 = MSCMakeCallHandle(vm, "weele(_)");
     fnCall2 = MSCMakeCallHandle(vm, "weele(_,_)");
@@ -616,21 +617,21 @@ static void releaseApp(struct HttpServer *server) {
     }
     server->released = true;
     struct HttpRequestBindBuffer *bindings = server->bindings;
-    MVM *vm = getVM();
+    Djuru *djuru = getCurrentThread();
     while (bindings) {
         if (bindings->value->handler != NULL) {
-            MSCReleaseHandle(vm, bindings->value->handler);
+            MSCReleaseHandle(djuru, bindings->value->handler);
         }
         if (bindings->value->wsHandlers) {
             struct WsBindings *wsBindings = bindings->value->wsHandlers;
-            if (wsBindings->drain) MSCReleaseHandle(vm, wsBindings->drain);
-            if (wsBindings->open) MSCReleaseHandle(vm, wsBindings->open);
-            if (wsBindings->close) MSCReleaseHandle(vm, wsBindings->close);
-            if (wsBindings->message) MSCReleaseHandle(vm, wsBindings->message);
-            if (wsBindings->upgrade) MSCReleaseHandle(vm, wsBindings->upgrade);
-            if (wsBindings->ping) MSCReleaseHandle(vm, wsBindings->ping);
-            if (wsBindings->pong) MSCReleaseHandle(vm, wsBindings->pong);
-            if (wsBindings->subscription) MSCReleaseHandle(vm, wsBindings->subscription);
+            if (wsBindings->drain) MSCReleaseHandle(djuru, wsBindings->drain);
+            if (wsBindings->open) MSCReleaseHandle(djuru, wsBindings->open);
+            if (wsBindings->close) MSCReleaseHandle(djuru, wsBindings->close);
+            if (wsBindings->message) MSCReleaseHandle(djuru, wsBindings->message);
+            if (wsBindings->upgrade) MSCReleaseHandle(djuru, wsBindings->upgrade);
+            if (wsBindings->ping) MSCReleaseHandle(djuru, wsBindings->ping);
+            if (wsBindings->pong) MSCReleaseHandle(djuru, wsBindings->pong);
+            if (wsBindings->subscription) MSCReleaseHandle(djuru, wsBindings->subscription);
             free(bindings->value->wsHandlers);
         }
         struct HttpRequestBindBuffer *old = bindings;
@@ -646,19 +647,19 @@ void httpServerDestroy(void *data) {
     uws_app_destroy(server->ssl, server->app);
 }
 
-void httpServerInit(MVM *vm) {
+void httpServerInit(Djuru *djuru) {
     // get options
-    int ssl = (int) MSCGetSlotBool(vm, 1);
+    int ssl = (int) MSCGetSlotBool(djuru, 1);
 
-    const char *cert_file = NULL;//MSCGetSlotString(vm, 2);// cert file
-    const char *key_file = NULL;//MSCGetSlotString(vm, 3);// key file
-    const char *passphrase = NULL;//MSCGetSlotString(vm, 4);// passphrase
-    const char *ca_file_name = NULL;//MSCGetSlotString(vm, 5);// ca_file_name
-    const char *dh_params_file_name = NULL;//MSCGetSlotString(vm, 6);// dh_params_file_name
-    const char *ssl_ciphers = NULL; //MSCGetSlotString(vm, 7);// ssl_ciphers
-    bool ssl_prefer_low_memory_usage = false; // MSCGetSlotBool(vm, 8);// ssl_prefer_low_memory_usage
-    MSCSetSlotHandle(vm, 0, httpServerClass);
-    struct HttpServer *httpServer = (struct HttpServer *) MSCSetSlotNewExtern(vm, 0, 0, sizeof(struct HttpServer));
+    const char *cert_file = NULL;//MSCGetSlotString(djuru, 2);// cert file
+    const char *key_file = NULL;//MSCGetSlotString(djuru, 3);// key file
+    const char *passphrase = NULL;//MSCGetSlotString(djuru, 4);// passphrase
+    const char *ca_file_name = NULL;//MSCGetSlotString(djuru, 5);// ca_file_name
+    const char *dh_params_file_name = NULL;//MSCGetSlotString(djuru, 6);// dh_params_file_name
+    const char *ssl_ciphers = NULL; //MSCGetSlotString(djuru, 7);// ssl_ciphers
+    bool ssl_prefer_low_memory_usage = false; // MSCGetSlotBool(djuru, 8);// ssl_prefer_low_memory_usage
+    MSCSetSlotHandle(djuru, 0, httpServerClass);
+    struct HttpServer *httpServer = (struct HttpServer *) MSCSetSlotNewExtern(djuru, 0, 0, sizeof(struct HttpServer));
     httpServer->options = (struct us_socket_context_options_t) {
             .key_file_name = key_file,
             .cert_file_name = cert_file,
@@ -683,68 +684,68 @@ void httpServerInit(MVM *vm) {
 // app.post("", data) {(req, res) =>
 // }
 
-void httpServerGetMethod(MVM *vm) {
-    const char *pattern = MSCGetSlotString(vm, 1);
-    struct HttpRequestBind *request = createRequest(vm);
+void httpServerGetMethod(Djuru *djuru) {
+    const char *pattern = MSCGetSlotString(djuru, 1);
+    struct HttpRequestBind *request = createRequest(djuru);
     uws_app_get(request->server->ssl, request->server->app, pattern, uwsHandler, request);
 }
 
 
-void httpServerPatchMethod(MVM *vm) {
-    const char *pattern = MSCGetSlotString(vm, 1);
-    struct HttpRequestBind *request = createRequest(vm);
+void httpServerPatchMethod(Djuru *djuru) {
+    const char *pattern = MSCGetSlotString(djuru, 1);
+    struct HttpRequestBind *request = createRequest(djuru);
     uws_app_patch(request->server->ssl, request->server->app, pattern, uwsHandler, request);
 }
 
-void httpServerPostMethod(MVM *vm) {
-    const char *pattern = MSCGetSlotString(vm, 1);
-    struct HttpRequestBind *request = createRequest(vm);
+void httpServerPostMethod(Djuru *djuru) {
+    const char *pattern = MSCGetSlotString(djuru, 1);
+    struct HttpRequestBind *request = createRequest(djuru);
     uws_app_post(request->server->ssl, request->server->app, pattern, uwsHandler, request);
 }
 
-void httpServerPutMethod(MVM *vm) {
-    const char *pattern = MSCGetSlotString(vm, 1);
-    struct HttpRequestBind *request = createRequest(vm);
+void httpServerPutMethod(Djuru *djuru) {
+    const char *pattern = MSCGetSlotString(djuru, 1);
+    struct HttpRequestBind *request = createRequest(djuru);
     uws_app_put(request->server->ssl, request->server->app, pattern, uwsHandler, request);
 }
 
-void httpServerOptionsMethod(MVM *vm) {
-    const char *pattern = MSCGetSlotString(vm, 1);
-    struct HttpRequestBind *request = createRequest(vm);
+void httpServerOptionsMethod(Djuru *djuru) {
+    const char *pattern = MSCGetSlotString(djuru, 1);
+    struct HttpRequestBind *request = createRequest(djuru);
     uws_app_options(request->server->ssl, request->server->app, pattern, uwsHandler, request);
 }
 
-void httpServerDeleteMethod(MVM *vm) {
-    const char *pattern = MSCGetSlotString(vm, 1);
-    struct HttpRequestBind *request = createRequest(vm);
+void httpServerDeleteMethod(Djuru *djuru) {
+    const char *pattern = MSCGetSlotString(djuru, 1);
+    struct HttpRequestBind *request = createRequest(djuru);
     uws_app_delete(request->server->ssl, request->server->app, pattern, uwsHandler, request);
 }
 
-void httpServerAnyMethod(MVM *vm) {
-    const char *pattern = MSCGetSlotString(vm, 1);
-    struct HttpRequestBind *request = createRequest(vm);
+void httpServerAnyMethod(Djuru *djuru) {
+    const char *pattern = MSCGetSlotString(djuru, 1);
+    struct HttpRequestBind *request = createRequest(djuru);
     uws_app_any(request->server->ssl, request->server->app, pattern, uwsHandler, request);
 }
-void httpServerHeadMethod(MVM *vm) {
-    const char *pattern = MSCGetSlotString(vm, 1);
-    struct HttpRequestBind *request = createRequest(vm);
+void httpServerHeadMethod(Djuru *djuru) {
+    const char *pattern = MSCGetSlotString(djuru, 1);
+    struct HttpRequestBind *request = createRequest(djuru);
     uws_app_head(request->server->ssl, request->server->app, pattern, uwsHandler, request);
 }
-void httpServerTraceMethod(MVM *vm) {
-    const char *pattern = MSCGetSlotString(vm, 1);
-    struct HttpRequestBind *request = createRequest(vm);
+void httpServerTraceMethod(Djuru *djuru) {
+    const char *pattern = MSCGetSlotString(djuru, 1);
+    struct HttpRequestBind *request = createRequest(djuru);
     uws_app_trace(request->server->ssl, request->server->app, pattern, uwsHandler, request);
 }
 
-void httpServerConnectMethod(MVM *vm) {
-    const char *pattern = MSCGetSlotString(vm, 1);
-    struct HttpRequestBind *request = createRequest(vm);
+void httpServerConnectMethod(Djuru *djuru) {
+    const char *pattern = MSCGetSlotString(djuru, 1);
+    struct HttpRequestBind *request = createRequest(djuru);
     uws_app_connect(request->server->ssl, request->server->app, pattern, uwsHandler, request);
 }
 
-static struct WebSocket *createWebSocket(MVM *vm, int slot, uws_websocket_t *ws, int ssl) {
-    MSCSetSlotHandle(vm, slot, wsSocketClass);
-    struct WebSocket *data = (struct WebSocket *) MSCSetSlotNewExtern(vm, slot, slot, sizeof(struct WebSocket));
+static struct WebSocket *createWebSocket(Djuru *djuru, int slot, uws_websocket_t *ws, int ssl) {
+    MSCSetSlotHandle(djuru, slot, wsSocketClass);
+    struct WebSocket *data = (struct WebSocket *) MSCSetSlotNewExtern(djuru, slot, slot, sizeof(struct WebSocket));
     data->ssl = ssl;
     data->socket = ws;
 }
@@ -755,13 +756,13 @@ static void wsOnCloseHandler(uws_websocket_t *ws, int code, const char *message,
     if(!handle->wsHandlers->close) {
         return;
     }
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 4);
-    MSCSetSlotHandle(vm, 0, handle->wsHandlers->close);
-    createWebSocket(vm, 1, ws, handle->server->ssl);
-    MSCSetSlotBytes(vm, 2, message, length);
-    MSCSetSlotDouble(vm, 3, code);
-    MSCCall(vm, fnCall3);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 4);
+    MSCSetSlotHandle(djuru, 0, handle->wsHandlers->close);
+    createWebSocket(djuru, 1, ws, handle->server->ssl);
+    MSCSetSlotBytes(djuru, 2, message, length);
+    MSCSetSlotDouble(djuru, 3, code);
+    MSCCall(djuru, fnCall3);
 }
 
 static void wsOnOpenHandler(uws_websocket_t *ws, void *user_data) {
@@ -770,11 +771,11 @@ static void wsOnOpenHandler(uws_websocket_t *ws, void *user_data) {
     if(!handle->wsHandlers->open) {
         return;
     }
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 2);
-    MSCSetSlotHandle(vm, 0, handle->wsHandlers->open);
-    createWebSocket(vm, 1, ws, handle->server->ssl);
-    MSCCall(vm, fnCall1);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 2);
+    MSCSetSlotHandle(djuru, 0, handle->wsHandlers->open);
+    createWebSocket(djuru, 1, ws, handle->server->ssl);
+    MSCCall(djuru, fnCall1);
 }
 
 static void wsOnDrainHandler(uws_websocket_t *ws, void *user_data) {
@@ -783,11 +784,11 @@ static void wsOnDrainHandler(uws_websocket_t *ws, void *user_data) {
     if(!handle->wsHandlers->drain) {
         return;
     }
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 2);
-    MSCSetSlotHandle(vm, 0, handle->wsHandlers->drain);
-    createWebSocket(vm, 1, ws, handle->server->ssl);
-    MSCCall(vm, fnCall1);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 2);
+    MSCSetSlotHandle(djuru, 0, handle->wsHandlers->drain);
+    createWebSocket(djuru, 1, ws, handle->server->ssl);
+    MSCCall(djuru, fnCall1);
 }
 
 static void
@@ -797,13 +798,13 @@ wsOnMessageHandler(uws_websocket_t *ws, const char *message, size_t length, uws_
     if(!handle->wsHandlers->message) {
         return;
     }
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 4);
-    MSCSetSlotHandle(vm, 0, handle->wsHandlers->message);
-    createWebSocket(vm, 1, ws, handle->server->ssl);
-    MSCSetSlotBytes(vm, 2, message, length);
-    MSCSetSlotDouble(vm, 3, opcode);
-    MSCCall(vm, fnCall3);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 4);
+    MSCSetSlotHandle(djuru, 0, handle->wsHandlers->message);
+    createWebSocket(djuru, 1, ws, handle->server->ssl);
+    MSCSetSlotBytes(djuru, 2, message, length);
+    MSCSetSlotDouble(djuru, 3, opcode);
+    MSCCall(djuru, fnCall3);
 }
 
 static void wsPongHandler(uws_websocket_t *ws, const char *message, size_t length, void *user_data) {
@@ -812,12 +813,12 @@ static void wsPongHandler(uws_websocket_t *ws, const char *message, size_t lengt
     if(!handle->wsHandlers->pong) {
         return;
     }
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 3);
-    MSCSetSlotHandle(vm, 0, handle->wsHandlers->pong);
-    createWebSocket(vm, 1, ws, handle->server->ssl);
-    MSCSetSlotBytes(vm, 2, message, length);
-    MSCCall(vm, fnCall2);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 3);
+    MSCSetSlotHandle(djuru, 0, handle->wsHandlers->pong);
+    createWebSocket(djuru, 1, ws, handle->server->ssl);
+    MSCSetSlotBytes(djuru, 2, message, length);
+    MSCCall(djuru, fnCall2);
 }
 
 static void wsPingHandler(uws_websocket_t *ws, const char *message, size_t length, void *user_data) {
@@ -826,12 +827,12 @@ static void wsPingHandler(uws_websocket_t *ws, const char *message, size_t lengt
     if(!handle->wsHandlers->ping) {
         return;
     }
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 3);
-    MSCSetSlotHandle(vm, 0, handle->wsHandlers->ping);
-    createWebSocket(vm, 1, ws, handle->server->ssl);
-    MSCSetSlotBytes(vm, 2, message, length);
-    MSCCall(vm, fnCall2);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 3);
+    MSCSetSlotHandle(djuru, 0, handle->wsHandlers->ping);
+    createWebSocket(djuru, 1, ws, handle->server->ssl);
+    MSCSetSlotBytes(djuru, 2, message, length);
+    MSCCall(djuru, fnCall2);
 }
 
 static void wsUpgradeHandler(uws_res_t *res, uws_req_t *req, uws_socket_context_t *context, void *user_data) {
@@ -841,16 +842,16 @@ static void wsUpgradeHandler(uws_res_t *res, uws_req_t *req, uws_socket_context_
     if(!handle->wsHandlers->upgrade) {
         return;
     }
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 2);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 2);
     // create a new reqres instance
-    MSCSetSlotHandle(vm, 0, handle->wsHandlers->upgrade);
-    MSCSetSlotHandle(vm, 1, httpReqResClass);
-    struct HttpRequestResponse *reqRes = MSCSetSlotNewExtern(vm, 1, 1, sizeof(struct HttpRequestResponse));
-    // (struct HttpRequestResponse *) MSCGetSlotExtern(vm, 2);
+    MSCSetSlotHandle(djuru, 0, handle->wsHandlers->upgrade);
+    MSCSetSlotHandle(djuru, 1, httpReqResClass);
+    struct HttpRequestResponse *reqRes = MSCSetSlotNewExtern(djuru, 1, 1, sizeof(struct HttpRequestResponse));
+    // (struct HttpRequestResponse *) MSCGetSlotExtern(djuru, 2);
     *reqRes = (struct HttpRequestResponse) {.req = req, .res = res, .ssl = handle->server->ssl, .context = context};
     uws_res_on_aborted(reqRes->ssl, reqRes->res, uwsOnReqAbort, reqRes);
-    MSCCall(vm, fnCall1);
+    MSCCall(djuru, fnCall1);
 }
 
 static void wsSubscriptionHandler(uws_websocket_t *ws, const char *topic_name, size_t topic_name_length,
@@ -860,118 +861,118 @@ static void wsSubscriptionHandler(uws_websocket_t *ws, const char *topic_name, s
     if(!handle->wsHandlers->subscription) {
         return;
     }
-    MVM *vm = getVM();
-    MSCEnsureSlots(vm, 5);
-    MSCSetSlotHandle(vm, 0, handle->wsHandlers->subscription);
-    createWebSocket(vm, 1, ws, handle->server->ssl);
-    MSCSetSlotBytes(vm, 2, topic_name, topic_name_length);
-    MSCSetSlotDouble(vm, 3, new_number_of_subscriber);
-    MSCSetSlotDouble(vm, 4, old_number_of_subscriber);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 5);
+    MSCSetSlotHandle(djuru, 0, handle->wsHandlers->subscription);
+    createWebSocket(djuru, 1, ws, handle->server->ssl);
+    MSCSetSlotBytes(djuru, 2, topic_name, topic_name_length);
+    MSCSetSlotDouble(djuru, 3, new_number_of_subscriber);
+    MSCSetSlotDouble(djuru, 4, old_number_of_subscriber);
 
-    MSCCall(vm, fnCall4);
+    MSCCall(djuru, fnCall4);
 }
 
-void wsEnd(MVM *vm) {
-    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(vm, 0);
+void wsEnd(Djuru *djuru) {
+    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(djuru, 0);
     int size;
-    const char *message = MSCGetSlotBytes(vm, 1, &size);
-    uws_ws_end(socket->ssl, socket->socket, (int) MSCGetSlotDouble(vm, 2), message, (size_t) size);
+    const char *message = MSCGetSlotBytes(djuru, 1, &size);
+    uws_ws_end(socket->ssl, socket->socket, (int) MSCGetSlotDouble(djuru, 2), message, (size_t) size);
 }
 
 static void wsCorkHandler(void *userData) {
 
 }
 
-void wsCork(MVM *vm) {
-    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(vm, 0);
+void wsCork(Djuru *djuru) {
+    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(djuru, 0);
     uws_ws_cork(socket->ssl, socket->socket, wsCorkHandler, NULL);
 }
 
-void wsClose(MVM *vm) {
-    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(vm, 0);
+void wsClose(Djuru *djuru) {
+    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(djuru, 0);
     uws_ws_close(socket->ssl, socket->socket);
 }
 
-void wsRemoteAddress(MVM *vm) {
-    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(vm, 0);
+void wsRemoteAddress(Djuru *djuru) {
+    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(djuru, 0);
     const char *dest;
     size_t size = uws_ws_get_remote_address_as_text(socket->ssl, socket->socket, &dest);
-    MSCSetSlotBytes(vm, 0, dest, size);
+    MSCSetSlotBytes(djuru, 0, dest, size);
 
 }
 
-void wsPublish(MVM *vm) {
-    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(vm, 0);
+void wsPublish(Djuru *djuru) {
+    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(djuru, 0);
     int topicSize;
-    const char *topic = MSCGetSlotBytes(vm, 1, &topicSize);
+    const char *topic = MSCGetSlotBytes(djuru, 1, &topicSize);
     int messageSize;
-    const char *message = MSCGetSlotBytes(vm, 2, &messageSize);
+    const char *message = MSCGetSlotBytes(djuru, 2, &messageSize);
     bool ok = uws_ws_publish(socket->ssl, socket->socket, topic, (size_t) topicSize, message, (size_t) messageSize);
-    MSCSetSlotBool(vm, 0, ok);
+    MSCSetSlotBool(djuru, 0, ok);
 }
 
-void wsPublishWithOptions(MVM *vm) {
-    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(vm, 0);
+void wsPublishWithOptions(Djuru *djuru) {
+    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(djuru, 0);
     int topicSize;
-    const char *topic = MSCGetSlotBytes(vm, 1, &topicSize);
+    const char *topic = MSCGetSlotBytes(djuru, 1, &topicSize);
     int messageSize;
-    const char *message = MSCGetSlotBytes(vm, 2, &messageSize);
+    const char *message = MSCGetSlotBytes(djuru, 2, &messageSize);
     bool ok = uws_ws_publish_with_options(socket->ssl, socket->socket, topic, (size_t) topicSize, message,
-                                          (size_t) messageSize, (uws_opcode_t) (int) MSCGetSlotDouble(vm, 3),
-                                          MSCGetSlotBool(vm, 4));
-    MSCSetSlotBool(vm, 0, ok);
+                                          (size_t) messageSize, (uws_opcode_t) (int) MSCGetSlotDouble(djuru, 3),
+                                          MSCGetSlotBool(djuru, 4));
+    MSCSetSlotBool(djuru, 0, ok);
 }
 
-void wsSend(MVM *vm) {
-    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(vm, 0);
+void wsSend(Djuru *djuru) {
+    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(djuru, 0);
     int messageSize;
-    const char *message = MSCGetSlotBytes(vm, 1, &messageSize);
+    const char *message = MSCGetSlotBytes(djuru, 1, &messageSize);
     uws_sendstatus_t ok = uws_ws_send(socket->ssl, socket->socket, message, (size_t) messageSize,
-                                      (uws_opcode_t) (int) MSCGetSlotDouble(vm, 2));
-    MSCSetSlotDouble(vm, 0, ok);
+                                      (uws_opcode_t) (int) MSCGetSlotDouble(djuru, 2));
+    MSCSetSlotDouble(djuru, 0, ok);
 }
 
-void wsSubscribe(MVM *vm) {
-    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(vm, 0);
+void wsSubscribe(Djuru *djuru) {
+    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(djuru, 0);
     int topicSize;
-    const char *topic = MSCGetSlotBytes(vm, 1, &topicSize);
+    const char *topic = MSCGetSlotBytes(djuru, 1, &topicSize);
     bool ok = uws_ws_subscribe(socket->ssl, socket->socket, topic, (size_t) topicSize);
-    MSCSetSlotBool(vm, 0, ok);
+    MSCSetSlotBool(djuru, 0, ok);
 }
 
-void wsUnsubscribe(MVM *vm) {
-    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(vm, 0);
+void wsUnsubscribe(Djuru *djuru) {
+    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(djuru, 0);
     int topicSize;
-    const char *topic = MSCGetSlotBytes(vm, 1, &topicSize);
+    const char *topic = MSCGetSlotBytes(djuru, 1, &topicSize);
     bool ok = uws_ws_unsubscribe(socket->ssl, socket->socket, topic, (size_t) topicSize);
-    MSCSetSlotBool(vm, 0, ok);
+    MSCSetSlotBool(djuru, 0, ok);
 }
 
 static void wsTopicForEachHandler(const char *name, size_t size, void *userData) {
-    MVM *vm = (MVM *) userData;
+    Djuru *djuru = (Djuru *) userData;
     // push name
-    MSCSetSlotBytes(vm, 1, name, size);
-    MSCSetListElement(vm, 0, -1, 2);
+    MSCSetSlotBytes(djuru, 1, name, size);
+    MSCSetListElement(djuru, 0, -1, 2);
 }
 
-void wsTopicForEach(MVM *vm) {
-    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(vm, 0);
-    MSCEnsureSlots(vm, 2);
-    MSCSetSlotNewList(vm, 0);
-    uws_ws_iterate_topics(socket->ssl, socket->socket, wsTopicForEachHandler, vm);
+void wsTopicForEach(Djuru *djuru) {
+    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(djuru, 0);
+    MSCEnsureSlots(djuru, 2);
+    MSCSetSlotNewList(djuru, 0);
+    uws_ws_iterate_topics(socket->ssl, socket->socket, wsTopicForEachHandler, djuru);
 }
 
-void wsBufferedAmount(MVM *vm) {
-    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(vm, 0);
-    MSCEnsureSlots(vm, 2);
+void wsBufferedAmount(Djuru *djuru) {
+    struct WebSocket *socket = (struct WebSocket *) MSCGetSlotExtern(djuru, 0);
+    MSCEnsureSlots(djuru, 2);
     unsigned int amount = uws_ws_get_buffered_amount(socket->ssl, socket->socket);
-    MSCSetSlotDouble(vm, 0, amount);
+    MSCSetSlotDouble(djuru, 0, amount);
 }
 
-void httpServerWsMethod(MVM *vm) {
-    const char *pattern = MSCGetSlotString(vm, 1);
-    MSCEnsureSlots(vm, 4);
-    struct HttpRequestBind *request = createWsRequest(vm);
+void httpServerWsMethod(Djuru *djuru) {
+    const char *pattern = MSCGetSlotString(djuru, 1);
+    MSCEnsureSlots(djuru, 4);
+    struct HttpRequestBind *request = createWsRequest(djuru);
 
     uws_socket_behavior_t behavior = {
     };
@@ -1000,46 +1001,46 @@ void httpServerWsMethod(MVM *vm) {
         behavior.drain = wsOnDrainHandler;
     }
 
-    if (MSCGetSlotType(vm, 2) == MSC_TYPE_MAP) {
-        MSCSetSlotString(vm, 3, "idleTimeout");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) == MSC_TYPE_NUM) {
-            behavior.idleTimeout = (unsigned short) MSCGetSlotDouble(vm, 3);
+    if (MSCGetSlotType(djuru, 2) == MSC_TYPE_MAP) {
+        MSCSetSlotString(djuru, 3, "idleTimeout");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) == MSC_TYPE_NUM) {
+            behavior.idleTimeout = (unsigned short) MSCGetSlotDouble(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "maxBackpressure");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) == MSC_TYPE_NUM) {
-            behavior.maxBackpressure = (unsigned int) MSCGetSlotDouble(vm, 3);
+        MSCSetSlotString(djuru, 3, "maxBackpressure");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) == MSC_TYPE_NUM) {
+            behavior.maxBackpressure = (unsigned int) MSCGetSlotDouble(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "maxLifetime");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) == MSC_TYPE_NUM) {
-            behavior.maxLifetime = (unsigned short) MSCGetSlotDouble(vm, 3);
+        MSCSetSlotString(djuru, 3, "maxLifetime");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) == MSC_TYPE_NUM) {
+            behavior.maxLifetime = (unsigned short) MSCGetSlotDouble(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "maxPayloadLength");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) == MSC_TYPE_NUM) {
-            behavior.maxPayloadLength = (unsigned int) MSCGetSlotDouble(vm, 3);
+        MSCSetSlotString(djuru, 3, "maxPayloadLength");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) == MSC_TYPE_NUM) {
+            behavior.maxPayloadLength = (unsigned int) MSCGetSlotDouble(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "resetIdleTimeoutOnSend");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) == MSC_TYPE_BOOL) {
-            behavior.resetIdleTimeoutOnSend = MSCGetSlotBool(vm, 3);
+        MSCSetSlotString(djuru, 3, "resetIdleTimeoutOnSend");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) == MSC_TYPE_BOOL) {
+            behavior.resetIdleTimeoutOnSend = MSCGetSlotBool(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "sendPingsAutomatically");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) == MSC_TYPE_BOOL) {
-            behavior.sendPingsAutomatically = MSCGetSlotBool(vm, 3);
+        MSCSetSlotString(djuru, 3, "sendPingsAutomatically");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) == MSC_TYPE_BOOL) {
+            behavior.sendPingsAutomatically = MSCGetSlotBool(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "closeOnBackpressureLimit");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) == MSC_TYPE_BOOL) {
-            behavior.closeOnBackpressureLimit = MSCGetSlotBool(vm, 3);
+        MSCSetSlotString(djuru, 3, "closeOnBackpressureLimit");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) == MSC_TYPE_BOOL) {
+            behavior.closeOnBackpressureLimit = MSCGetSlotBool(djuru, 3);
         }
-        MSCSetSlotString(vm, 3, "compression");
-        MSCGetMapValue(vm, 2, 3, 3);
-        if (MSCGetSlotType(vm, 3) == MSC_TYPE_BOOL) {
-            behavior.compression = (uws_compress_options_t) (int) MSCGetSlotDouble(vm, 3);
+        MSCSetSlotString(djuru, 3, "compression");
+        MSCGetMapValue(djuru, 2, 3, 3);
+        if (MSCGetSlotType(djuru, 3) == MSC_TYPE_BOOL) {
+            behavior.compression = (uws_compress_options_t) (int) MSCGetSlotDouble(djuru, 3);
         }
     }
 
@@ -1048,74 +1049,74 @@ void httpServerWsMethod(MVM *vm) {
 
 static void
 uwsListenHandler(struct us_listen_socket_t *listen_socket, uws_app_listen_config_t config, void *user_data) {
-    MVM *vm = getVM();
+    Djuru *djuru = getCurrentThread();
     if (listen_socket) {
-        MSCSetSlotBool(vm, 0, true);
+        MSCSetSlotBool(djuru, 0, true);
     } else {
-        MSCSetSlotString(vm, 0, "Failed to listen");
-        MSCAbortDjuru(vm, 0);
+        MSCSetSlotString(djuru, 0, "Failed to listen");
+        MSCAbortDjuru(djuru, 0);
     }
 
 }
 
-void httpServerListen(MVM *vm) {
-    int port = (int) MSCGetSlotDouble(vm, 1);
-    struct HttpServer *server = (struct HttpServer *) MSCGetSlotExtern(vm, 0);
+void httpServerListen(Djuru *djuru) {
+    int port = (int) MSCGetSlotDouble(djuru, 1);
+    struct HttpServer *server = (struct HttpServer *) MSCGetSlotExtern(djuru, 0);
     uws_app_listen(server->ssl, server->app, port, uwsListenHandler, NULL);
 }
 
-void httpServerStop(MVM *vm) {
-    struct HttpServer *server = (struct HttpServer *) MSCGetSlotExtern(vm, 0);
+void httpServerStop(Djuru *djuru) {
+    struct HttpServer *server = (struct HttpServer *) MSCGetSlotExtern(djuru, 0);
     releaseApp(server);
     uws_app_close(server->ssl, server->app);
 }
 
-void httpServerPublish(MVM* vm) {
-    struct HttpServer *server = (struct HttpServer *) MSCGetSlotExtern(vm, 0);
+void httpServerPublish(Djuru *djuru) {
+    struct HttpServer *server = (struct HttpServer *) MSCGetSlotExtern(djuru, 0);
     int topicLength;
     int messageLength;
-    const char* topic = MSCGetSlotBytes(vm, 1, &topicLength);
-    const char* message = MSCGetSlotBytes(vm, 2, &messageLength);
-    MSCSetSlotBool(vm, 0, uws_publish(server->ssl, server->app, topic, (size_t) topicLength, message, (size_t) messageLength, (uws_opcode_t)(int)MSCGetSlotDouble(vm, 3), MSCGetSlotBool(vm, 4)));
+    const char* topic = MSCGetSlotBytes(djuru, 1, &topicLength);
+    const char* message = MSCGetSlotBytes(djuru, 2, &messageLength);
+    MSCSetSlotBool(djuru, 0, uws_publish(server->ssl, server->app, topic, (size_t) topicLength, message, (size_t) messageLength, (uws_opcode_t)(int)MSCGetSlotDouble(djuru, 3), MSCGetSlotBool(djuru, 4)));
 }
 
-void httpServerNumSubscriber(MVM* vm) {
-    struct HttpServer *server = (struct HttpServer *) MSCGetSlotExtern(vm, 0);
+void httpServerNumSubscriber(Djuru *djuru) {
+    struct HttpServer *server = (struct HttpServer *) MSCGetSlotExtern(djuru, 0);
     int topicLength;
-    const char* topic = MSCGetSlotBytes(vm, 1, &topicLength);
+    const char* topic = MSCGetSlotBytes(djuru, 1, &topicLength);
     unsigned int res = uws_num_subscribers(server->ssl, server->app, topic, (size_t) topicLength);
-    MSCSetSlotDouble(vm, 0, res);
+    MSCSetSlotDouble(djuru, 0, res);
 }
-void httpServerRun(MVM *vm) {
+void httpServerRun(Djuru *djuru) {
     // uws_app_run(SSL, httpApp);
     // us_loop_run(uws_get_loop_with_native(getLoop()));
 }
 
 void httpShutdown() {
 
-    MVM *vm = getVM();
+    Djuru *djuru = getCurrentThread();
     if (httpReqResClass) {
-        MSCReleaseHandle(vm, httpReqResClass);
+        MSCReleaseHandle(djuru, httpReqResClass);
     }
     if (httpServerClass) {
-        MSCReleaseHandle(vm, httpServerClass);
+        MSCReleaseHandle(djuru, httpServerClass);
     }
     if (fnCall) {
-        MSCReleaseHandle(vm, fnCall);
+        MSCReleaseHandle(djuru, fnCall);
     }
     if (fnCall1) {
-        MSCReleaseHandle(vm, fnCall1);
+        MSCReleaseHandle(djuru, fnCall1);
     }
     if (fnCall2) {
-        MSCReleaseHandle(vm, fnCall2);
+        MSCReleaseHandle(djuru, fnCall2);
     }
     if (fnCall3) {
-        MSCReleaseHandle(vm, fnCall3);
+        MSCReleaseHandle(djuru, fnCall3);
     }
     if (fnCall4) {
-        MSCReleaseHandle(vm, fnCall4);
+        MSCReleaseHandle(djuru, fnCall4);
     }
     if (wsSocketClass) {
-        MSCReleaseHandle(vm, wsSocketClass);
+        MSCReleaseHandle(djuru, wsSocketClass);
     }
 }

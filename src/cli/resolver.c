@@ -4,6 +4,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <MVM.h>
 
 #include "resolver.h"
 #include "cli_source.inc"
@@ -15,9 +16,9 @@
 MVM *resolver;
 
 
-void fileLoadDynamicLibrary(MVM *vm) {
-    const char *name = MSCGetSlotString(vm, 1);
-    const char *path = MSCGetSlotString(vm, 2);
+void fileLoadDynamicLibrary(Djuru *djuru) {
+    const char *name = MSCGetSlotString(djuru, 1);
+    const char *path = MSCGetSlotString(djuru, 2);
     // fprintf(stderr,"loading dylib %s at %s\n",name,path);
 
     uv_lib_t *lib = (uv_lib_t *) malloc(sizeof(uv_lib_t));
@@ -34,24 +35,24 @@ void fileLoadDynamicLibrary(MVM *vm) {
     registerPackage(name, m);
 }
 
-void fileExistsSync(MVM *vm) {
+void fileExistsSync(Djuru *djuru) {
     uv_fs_t req;
-    int r = uv_fs_stat(NULL, &req, MSCGetSlotString(vm, 1), NULL);
-    // fprintf(stderr,"fileExists, %s  %d\n", MSCGetSlotString()(vm,1), r);
-    MSCEnsureSlots(vm, 1);
+    int r = uv_fs_stat(NULL, &req, MSCGetSlotString(djuru, 1), NULL);
+    // fprintf(stderr,"fileExists, %s  %d\n", MSCGetSlotString()(djuru,1), r);
+    MSCEnsureSlots(djuru, 1);
     // non zero is error and means we don't have a file
-    MSCSetSlotBool(vm, 0, r == 0);
+    MSCSetSlotBool(djuru, 0, r == 0);
 }
 
-void fileRealPathSync(MVM *vm) {
-    const char *path = MSCGetSlotString(vm, 1);
+void fileRealPathSync(Djuru *djuru) {
+    const char *path = MSCGetSlotString(djuru, 1);
 
     uv_fs_t request;
     uv_fs_realpath(getLoop(), &request, path, NULL);
 
     // fprintf("%s", request.ptr);
     // Path* result = pathNew((char*)request.ptr);
-    MSCSetSlotString(vm, 0, (const char *) request.ptr);
+    MSCSetSlotString(djuru, 0, (const char *) request.ptr);
 
     uv_fs_req_cleanup(&request);
     // return result;
@@ -64,9 +65,9 @@ MSCHandle *resolverClass;
 void freeResolver() {
     MVM *vm = resolver;
     if (resolverClass != NULL) {
-        MSCReleaseHandle(vm, resolverClass);
-        MSCReleaseHandle(vm, loadModuleFn);
-        MSCReleaseHandle(vm, resolveModuleFn);
+        MSCReleaseHandle(vm->djuru, resolverClass);
+        MSCReleaseHandle(vm->djuru, loadModuleFn);
+        MSCReleaseHandle(vm->djuru, resolveModuleFn);
         resolverClass = NULL;
         loadModuleFn = NULL;
         resolveModuleFn = NULL;
@@ -74,10 +75,10 @@ void freeResolver() {
     MSCFreeVM(resolver);
 }
 
-void saveResolverHandles(MVM *vm) {
-    MSCEnsureSlots(vm, 1);
-    MSCGetVariable(resolver, "<gini>", "Gninibaga", 0);
-    resolverClass = MSCGetSlotHandle(vm, 0);
+void saveResolverHandles(Djuru *djuru) {
+    MSCEnsureSlots(djuru, 1);
+    MSCGetVariable(djuru, "<gini>", "Gninibaga", 0);
+    resolverClass = MSCGetSlotHandle(djuru, 0);
     resolveModuleFn = MSCMakeCallHandle(resolver, "moduleGnini(_,_,_)");
     loadModuleFn = MSCMakeCallHandle(resolver, "naniModuleYe(_,_)");
 }
@@ -102,16 +103,17 @@ static void writeFn(MVM *vm, const char *text) {
 
 char *MOSCLoadModule(const char *module) {
     MVM *vm = resolver;
-    MSCEnsureSlots(vm, 3);
-    MSCSetSlotHandle(vm, 0, resolverClass);
-    MSCSetSlotString(vm, 1, module);
-    MSCSetSlotString(vm, 2, rootDirectory);
-    int error = MSCCall(resolver, loadModuleFn);
+    Djuru* djuru = vm->djuru;
+    MSCEnsureSlots(djuru, 3);
+    MSCSetSlotHandle(djuru, 0, resolverClass);
+    MSCSetSlotString(djuru, 1, module);
+    MSCSetSlotString(djuru, 2, rootDirectory);
+    int error = MSCCall(djuru, loadModuleFn);
     if (error == RESULT_RUNTIME_ERROR) {
         fprintf(stderr, "Unexpected error in Resolver.loadModule(). Cannot continue.\n");
         exit(70);
     }
-    const char *tmp = MSCGetSlotString(vm, 0);
+    const char *tmp = MSCGetSlotString(djuru, 0);
     char *result = malloc(strlen(tmp) + 1);
     strcpy(result, tmp);
     return result;
@@ -119,17 +121,18 @@ char *MOSCLoadModule(const char *module) {
 
 char *MOSCResolveModule(const char *importer, const char *module) {
     MVM *vm = resolver;
-    MSCEnsureSlots(vm, 4);
-    MSCSetSlotHandle(vm, 0, resolverClass);
-    MSCSetSlotString(vm, 1, importer);
-    MSCSetSlotString(vm, 2, module);
-    MSCSetSlotString(vm, 3, rootDirectory);
-    int error = MSCCall(resolver, resolveModuleFn);
+    Djuru* djuru = vm->djuru;
+    MSCEnsureSlots(djuru, 4);
+    MSCSetSlotHandle(djuru, 0, resolverClass);
+    MSCSetSlotString(djuru, 1, importer);
+    MSCSetSlotString(djuru, 2, module);
+    MSCSetSlotString(djuru, 3, rootDirectory);
+    int error = MSCCall(djuru, resolveModuleFn);
     if (error == RESULT_RUNTIME_ERROR) {
         fprintf(stderr, "Unexpected error in Gninibaga.resolveModule(). Cannot continue.\n");
         exit(70);
     }
-    const char *tmp = MSCGetSlotString(vm, 0);
+    const char *tmp = MSCGetSlotString(djuru, 0);
     char *result = malloc(strlen(tmp) + 1);
     strcpy(result, tmp);
     return result;
@@ -144,8 +147,8 @@ void initResolverVM() {
     config.errorHandler = reportError;
 
     resolver = MSCNewVM(&config);
-
+    // printf("initResolverVM\n");
     // Initialize the event loop.
     MSCInterpretResult result = MSCInterpret(resolver, "<gini>", resolverModuleSource);
-    saveResolverHandles(resolver);
+    saveResolverHandles(resolver->djuru);
 }
