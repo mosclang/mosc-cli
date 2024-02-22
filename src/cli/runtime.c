@@ -379,9 +379,7 @@ MSCInterpretResult runCLI()
     rootDirectory = (char*)".";
     initVM();
 
-    printf("runCLI\n");
     MSCInterpretResult result = MSCInterpret(vm, "<cli>", "kabo \"cli\" nani CLI");
-    printf("Cli result:: %d\n", result);
     if (result == RESULT_SUCCESS) { result = MSCInterpret(vm, "<cli>", "CLI.start()"); }
     if (result == RESULT_SUCCESS)
     {
