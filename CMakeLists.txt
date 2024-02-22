@@ -39,7 +39,7 @@ set(MSC_DEFS LIBUS_USE_OPENSSL LIBUS_USE_LIBUV DEBUG)
 set(LINK_OPTIONS)
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
-    set(MSC_DEFS ${MSC_DEFS} DEBUG=1 MSC_DEBUG_TRACE_INSTRUCTIONS=0)
+    set(MSC_DEFS ${MSC_DEFS} DEBUG=0 MSC_DEBUG_TRACE_INSTRUCTIONS=0)
 endif()
 
 # Utility function which will only add compiler flags if supported
