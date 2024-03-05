@@ -27,19 +27,15 @@ MVM* getVM();
 // Gets the event loop the VM is using.
 uv_loop_t* getLoop();
 
+void enqueueMicrotask(MSCHandle *callback);
+
 // Get the exit code the CLI should exit with when done.
 int getExitCode();
 
 // Set the exit code the CLI should exit with when done.
 void setExitCode(int exitCode);
 
-// Adds additional callbacks to use when binding foreign members from Wren.
-//
-// Used by the API test executable to let it wire up its own foreign functions.
-// This must be called before calling [createVM()].
-void setTestCallbacks(MSCBindExternMethodFn bindMethod,
-                      MSCBindExternClassFn bindClass,
-                      void (*afterLoad)(Djuru* vm));
+
 bool reportError(MVM* vm, MSCError type,
                  const char* module, int line, const char* message);
 

@@ -55,7 +55,7 @@ FUNCTION(ADD_FLAG_IF_SUPPORTED container flag)
 ENDFUNCTION()
 
 
-file(GLOB SOURCE_FILES_C src/**/*.c)
+file(GLOB SOURCE_FILES_C src/**/*.c src/**/*.cpp)
 file(GLOB SOURCE_FILES_H src/**/*.h)
 file(GLOB SOURCE_FILES_INC src/**/*.inc)
 

@@ -6,6 +6,7 @@
 #include <string.h>
 #include <msc.h>
 #include <net.h>
+#include <MVM.h>
 
 #include "io.h"
 #include "packages.h"
@@ -14,20 +15,25 @@
 #include "stat.h"
 #include "runtime.h"
 #include "resolver.h"
+#include "queue.h";
 
 // The single VM instance that the CLI uses.
-static MVM* vm;
+static MVM *vm;
 
 static MSCBindExternMethodFn bindMethodFn = NULL;
 static MSCBindExternClassFn bindClassFn = NULL;
 static MSCExternMethodFn afterLoadFn = NULL;
+static MSCHandle *fnCall0 = NULL;
 
-static uv_loop_t* loop;
+static uv_loop_t *loop;
+static uv_async_t *microtaskAsync;
+static uv_mutex_t *microtaskMutex;
+static Queue *microtaskQueue;
 
 // TODO: This isn't currently used, but probably will be when package imports
 // are supported. If not then, then delete this.
-char* rootDirectory = NULL;
-static Path* MOSCModulesDirectory = NULL;
+char *rootDirectory = NULL;
+static Path *MOSCModulesDirectory = NULL;
 
 // The exit code to use unless some other error overrides it.
 int defaultExitCode = 0;
@@ -37,9 +43,8 @@ int defaultExitCode = 0;
 //
 // Returns `NULL` if the path could not be found. Exits if it was found but
 // could not be read.
-static char* readFile(const char* path)
-{
-    FILE* file = fopen(path, "rb");
+static char *readFile(const char *path) {
+    FILE *file = fopen(path, "rb");
     if (file == NULL) return NULL;
 
     // Find out how big the file is.
@@ -48,17 +53,15 @@ static char* readFile(const char* path)
     rewind(file);
 
     // Allocate a buffer for it.
-    char* buffer = (char*)malloc(fileSize + 1);
-    if (buffer == NULL)
-    {
+    char *buffer = (char *) malloc(fileSize + 1);
+    if (buffer == NULL) {
         fprintf(stderr, "Could not read file \"%s\".\n", path);
         exit(74);
     }
 
     // Read the entire file.
     size_t bytesRead = fread(buffer, 1, fileSize, file);
-    if (bytesRead < fileSize)
-    {
+    if (bytesRead < fileSize) {
         fprintf(stderr, "Could not read file \"%s\".\n", path);
         exit(74);
     }
@@ -70,8 +73,7 @@ static char* readFile(const char* path)
     return buffer;
 }
 
-static bool isDirectory(Path* path)
-{
+static bool isDirectory(Path *path) {
     uv_fs_t request;
     uv_fs_stat(loop, &request, path->chars, NULL);
     // TODO: Check request.result value?
@@ -83,12 +85,11 @@ static bool isDirectory(Path* path)
     return result;
 }
 
-static Path* realPath(Path* path)
-{
+static Path *realPath(Path *path) {
     uv_fs_t request;
     uv_fs_realpath(loop, &request, path->chars, NULL);
 
-    Path* result = pathNew((char*)request.ptr);
+    Path *result = pathNew((char *) request.ptr);
 
     uv_fs_req_cleanup(&request);
     return result;
@@ -99,21 +100,18 @@ static Path* realPath(Path* path)
 // [MOSCModulesDirectory].
 //
 // If [MOSCModulesDirectory] has already been found, does nothing.
-static void findModulesDirectory()
-{
+static void findModulesDirectory() {
     if (MOSCModulesDirectory != NULL) return;
 
-    Path* searchDirectory = pathNew(rootDirectory);
-    Path* lastPath = realPath(searchDirectory);
+    Path *searchDirectory = pathNew(rootDirectory);
+    Path *lastPath = realPath(searchDirectory);
 
     // Keep walking up directories as long as we find them.
-    for (;;)
-    {
-        Path* modulesDirectory = pathNew(searchDirectory->chars);
+    for (;;) {
+        Path *modulesDirectory = pathNew(searchDirectory->chars);
         pathJoin(modulesDirectory, "mosc_packages");
 
-        if (isDirectory(modulesDirectory))
-        {
+        if (isDirectory(modulesDirectory)) {
             pathNormalize(modulesDirectory);
             MOSCModulesDirectory = modulesDirectory;
             break;
@@ -124,9 +122,8 @@ static void findModulesDirectory()
         // Walk up directories until we hit the root. We can tell that because
         // adding ".." yields the same real path.
         pathJoin(searchDirectory, "..");
-        Path* thisPath = realPath(searchDirectory);
-        if (strcmp(lastPath->chars, thisPath->chars) == 0)
-        {
+        Path *thisPath = realPath(searchDirectory);
+        if (strcmp(lastPath->chars, thisPath->chars) == 0) {
             pathFree(thisPath);
             break;
         }
@@ -146,21 +143,20 @@ static void findModulesDirectory()
 //   containing [importer] and then normalized.
 //
 //   For example, importing "./a/./b/../c" from "./d/e/f" gives you "./d/e/a/c".
-static const char* resolveModule(MVM* vm, const char* importer,
-                                 const char* module)
-{
+static const char *resolveModule(MVM *vm, const char *importer,
+                                 const char *module) {
     // Logical import strings are used as-is and need no resolution.
     if (pathType(module) == PATH_TYPE_SIMPLE) return module;
 
     // Get the directory containing the importing module.
-    Path* path = pathNew(importer);
+    Path *path = pathNew(importer);
     pathDirName(path);
 
     // Add the relative import path.
     pathJoin(path, module);
 
     pathNormalize(path);
-    char* resolved = pathToString(path);
+    char *resolved = pathToString(path);
 
     pathFree(path);
     return resolved;
@@ -171,12 +167,10 @@ static const char* resolveModule(MVM* vm, const char* importer,
 //
 // Returns it if found, or NULL if the module could not be found. Exits if the
 // module was found but could not be read.
-static MSCLoadModuleResult loadModule(MVM* vm, const char* module)
-{
+static MSCLoadModuleResult loadModule(MVM *vm, const char *module) {
     MSCLoadModuleResult result = {0};
-    Path* filePath;
-    if (pathType(module) == PATH_TYPE_SIMPLE)
-    {
+    Path *filePath;
+    if (pathType(module) == PATH_TYPE_SIMPLE) {
         // If there is no "mosc_packages" directory, then the only logical imports
         // we can handle are built-in ones. Let the VM try to handle it.
         findModulesDirectory();
@@ -192,9 +186,7 @@ static MSCLoadModuleResult loadModule(MVM* vm, const char* module)
         // If the module is a single bare name, treat it as a module with the same
         // name inside the package. So "foo" means "foo/foo".
         if (strchr(module, '/') == NULL) pathJoin(filePath, module);
-    }
-    else
-    {
+    } else {
         // The module path is already a file path.
         filePath = pathNew(module);
     }
@@ -216,15 +208,13 @@ static MSCLoadModuleResult loadModule(MVM* vm, const char* module)
 
 // Binds foreign methods declared in either built in modules, or the injected
 // API test modules.
-static MSCExternMethodFn bindForeignMethod(MVM* vm, const char* module,
-                                             const char* className, bool isStatic, const char* signature)
-{
+static MSCExternMethodFn bindForeignMethod(MVM *vm, const char *module,
+                                           const char *className, bool isStatic, const char *signature) {
     MSCExternMethodFn method = bindBuiltInExternMethod(vm, module, className,
-                                                          isStatic, signature);
+                                                       isStatic, signature);
     if (method != NULL) return method;
 
-    if (bindMethodFn != NULL)
-    {
+    if (bindMethodFn != NULL) {
         return bindMethodFn(vm, module, className, isStatic, signature);
     }
 
@@ -234,30 +224,25 @@ static MSCExternMethodFn bindForeignMethod(MVM* vm, const char* module,
 // Binds ext classes declared in either built in modules, or the injected
 // API test modules.
 static MSCExternClassMethods bindForeignClass(
-        MVM* vm, const char* module, const char* className)
-{
+        MVM *vm, const char *module, const char *className) {
     MSCExternClassMethods methods = bindBuiltInExternClass(vm, module,
-                                                              className);
+                                                           className);
     if (methods.allocate != NULL) return methods;
 
-    if (bindClassFn != NULL)
-    {
+    if (bindClassFn != NULL) {
         return bindClassFn(vm, module, className);
     }
 
     return methods;
 }
 
-static void writeFn(MVM* vm, const char* text)
-{
+static void writeFn(MVM *vm, const char *text) {
     printf("%s", text);
 }
 
-bool reportError(MVM* vm, MSCError type,
-                        const char* module, int line, const char* message)
-{
-    switch (type)
-    {
+bool reportError(MVM *vm, MSCError type,
+                 const char *module, int line, const char *message) {
+    switch (type) {
         case ERROR_COMPILE:
             fprintf(stderr, "[%s line %d] %s\n", module, line, message);
             break;
@@ -273,12 +258,53 @@ bool reportError(MVM* vm, MSCError type,
     return true;
 }
 
-static void deferCb(void* userData) {
+static void deferCb(void *userData) {
 
 }
 
-static void initVM()
-{
+
+void microtaskAsyncCb(uv_async_t *handle) {
+    uv_mutex_lock(microtaskMutex);
+
+    while (!queueIsEmpty(microtaskQueue)) {
+        MSCHandle *task = queueTake(microtaskQueue);
+        Djuru *djuru = getCurrentThread();
+        MSCEnsureSlots(djuru, 1);
+        MSCSetSlotHandle(djuru, 0, task);
+        if (fnCall0 == NULL) {
+            fnCall0 = MSCMakeCallHandle(vm, "weele()");
+        }
+        MSCCall(djuru, fnCall0);
+        MSCReleaseHandle(djuru, task);
+    }
+    // printf("Done Processing Async::: \n");
+    // uv_unref((uv_handle_t *) microtaskAsync);
+    uv_mutex_unlock(microtaskMutex);
+}
+void enqueueMicrotask(MSCHandle *callback) {
+    uv_mutex_lock(microtaskMutex);
+    enqueItem(microtaskQueue, callback);
+    uv_mutex_unlock(microtaskMutex);
+    // uv_ref((uv_handle_t *) microtaskAsync);
+    // printf("Sending Async::: \n");
+    uv_async_send(microtaskAsync);
+}
+
+void* copyHandle(const void *item) {
+    return (MSCHandle*)item;
+}
+void destroyHandle(const void *_) {
+
+}
+void clearMicroTask() {
+    Djuru *djuru = getCurrentThread();
+    while (!queueIsEmpty(microtaskQueue)) {
+        MSCHandle *task = queueTake(microtaskQueue);
+        MSCReleaseHandle(djuru, task);
+    }
+}
+
+static void initVM() {
     MSCConfig config;
     MSCInitConfig(&config);
 
@@ -294,32 +320,36 @@ static void initVM()
     vm = MSCNewVM(&config);
 
     // Initialize the event loop.
-    loop = (uv_loop_t*)malloc(sizeof(uv_loop_t));
+    loop = (uv_loop_t *) malloc(sizeof(uv_loop_t));
     uv_loop_init(loop);
     uws_loop_defer(uws_get_loop_with_native(loop), deferCb, NULL);
 }
-
-static void freeVM()
-{
+static void cleanMicroTask() {
+    clearMicroTask();
+    uv_mutex_destroy(microtaskMutex);
+    uv_close((uv_handle_t *) microtaskAsync, NULL);
+    free(microtaskAsync);
+    free(microtaskMutex);
+    free(microtaskQueue);
+}
+static void freeVM() {
     ioShutdown();
     schedulerShutdown();
     httpShutdown();
-
+    cleanMicroTask();
     uv_loop_close(loop);
-    free(loop);
 
     MSCFreeVM(vm);
 
+    free(loop);
     uv_tty_reset_mode();
 
     if (MOSCModulesDirectory != NULL) pathFree(MOSCModulesDirectory);
 }
 
-MSCInterpretResult runFile(const char* path)
-{
-    char* source = readFile(path);
-    if (source == NULL)
-    {
+MSCInterpretResult runFile(const char *path) {
+    char *source = readFile(path);
+    if (source == NULL) {
         fprintf(stderr, "Could not find file \"%s\".\n", path);
         exit(66);
     }
@@ -331,10 +361,9 @@ MSCInterpretResult runFile(const char* path)
     // that case, here, we could check to see whether the give path exists inside
     // "mosc_packages" or as a relative path and choose to add "./" or not based
     // on that.
-    Path* module = pathNew(path);
-    if (pathType(module->chars) == PATH_TYPE_SIMPLE)
-    {
-        Path* relative = pathNew(".");
+    Path *module = pathNew(path);
+    if (pathType(module->chars) == PATH_TYPE_SIMPLE) {
+        Path *relative = pathNew(".");
         pathJoin(relative, path);
 
         pathFree(module);
@@ -345,7 +374,7 @@ MSCInterpretResult runFile(const char* path)
 
     // Use the directory where the file is as the root to resolve imports
     // relative to.
-    Path* directory = pathNew(module->chars);
+    Path *directory = pathNew(module->chars);
 
     pathDirName(directory);
     rootDirectory = pathToString(directory);
@@ -355,10 +384,9 @@ MSCInterpretResult runFile(const char* path)
 
     MSCInterpretResult result = MSCInterpret(vm, module->chars, source);
 
-    if (afterLoadFn != NULL) afterLoadFn(vm);
+    if (afterLoadFn != NULL) afterLoadFn(vm->djuru);
 
-    if (result == RESULT_SUCCESS)
-    {
+    if (result == RESULT_SUCCESS) {
         uv_run(loop, UV_RUN_DEFAULT);
     }
 
@@ -371,19 +399,26 @@ MSCInterpretResult runFile(const char* path)
     return result;
 }
 
-MSCInterpretResult runCLI()
-{
+
+MSCInterpretResult runCLI() {
     initResolverVM();
 
     // This cast is safe since we don't try to free the string later.
-    rootDirectory = (char*)".";
+    rootDirectory = (char *) ".";
     initVM();
-
+    microtaskQueue = initQueue(512, copyHandle, destroyHandle);
+    microtaskMutex = malloc(sizeof(uv_mutex_t));
+    microtaskAsync = malloc(sizeof(uv_async_t));
+    uv_mutex_init(microtaskMutex);
+    uv_async_init(loop, microtaskAsync, microtaskAsyncCb);
+    uv_unref((uv_handle_t *) microtaskAsync);
     MSCInterpretResult result = MSCInterpret(vm, "<cli>", "kabo \"cli\" nani CLI");
     if (result == RESULT_SUCCESS) { result = MSCInterpret(vm, "<cli>", "CLI.start()"); }
-    if (result == RESULT_SUCCESS)
-    {
+    if (result == RESULT_SUCCESS) {
         uv_run(loop, UV_RUN_DEFAULT);
+    }
+    if (fnCall0 != NULL) {
+        MSCReleaseHandle(vm->djuru, fnCall0);
     }
 
     freeVM();
@@ -392,10 +427,9 @@ MSCInterpretResult runCLI()
     return result;
 }
 
-MSCInterpretResult runRepl()
-{
+MSCInterpretResult runRepl() {
     // This cast is safe since we don't try to free the string later.
-    rootDirectory = (char*)".";
+    rootDirectory = (char *) ".";
     initVM();
 
     printf("___    ___\n");
@@ -407,8 +441,7 @@ MSCInterpretResult runRepl()
 
     MSCInterpretResult result = MSCInterpret(vm, "<repl>", "nani \"repl\"\n");
 
-    if (result == RESULT_SUCCESS)
-    {
+    if (result == RESULT_SUCCESS) {
         // printf("Success\n");
         uv_run(loop, UV_RUN_DEFAULT);
     } else {
@@ -420,34 +453,22 @@ MSCInterpretResult runRepl()
     return result;
 }
 
-MVM* getVM()
-{
+MVM *getVM() {
     return vm;
 }
-Djuru* getCurrentThread() {
+
+Djuru *getCurrentThread() {
     return MSCGetCurrentDjuru(vm);
 }
 
-uv_loop_t* getLoop()
-{
+uv_loop_t *getLoop() {
     return loop;
 }
 
-int getExitCode()
-{
+int getExitCode() {
     return defaultExitCode;
 }
 
-void setExitCode(int exitCode)
-{
+void setExitCode(int exitCode) {
     defaultExitCode = exitCode;
-}
-
-void setTestCallbacks(MSCBindExternMethodFn bindMethod,
-                      MSCBindExternClassFn bindClass,
-                      MSCExternMethodFn afterLoad)
-{
-    bindMethodFn = bindMethod;
-    bindClassFn = bindClass;
-    afterLoadFn = afterLoad;
 }

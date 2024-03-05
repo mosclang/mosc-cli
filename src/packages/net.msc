@@ -3,10 +3,19 @@ kabo "io" nani Stdin
 kabo "repl" nani Chars
 kabo "json" nani JSON
 
+
+dunan kulu Socket {
+  dilan kura(options) {}
+  dunan bind(ip, port)
+  dunan connect(ip, port)
+  dunan write(data)
+  dunan accept(client)
+  dunan close()
+  dunan read()
+  dunan listen(backlog)
+}
+
 dunan kulu HttpReqRes {
-  @test(a=12, b= 3)
-  @doc = ""
-  @!Get(path = ["/", "/test"])
   dunan body_(djuru)
   dunan end_(data, close)
   dunan endWithNoBody_(close)
@@ -162,6 +171,9 @@ kulu HttpInitOption {
 }
 dunan kulu HttpServer_ {
     dilan kura_(ssl) {
+        ale.kura_(ssl, gansan)
+    }
+    dilan kura_(ssl, options) {
     }
     dunan any_(pattern, djuru)
     dunan get_(pattern, djuru)
@@ -177,7 +189,7 @@ dunan kulu HttpServer_ {
     dunan publish_(topic, message, code, compress)
     dunan subscriberCount(topic)
 }
-p
+
 kulu HttpServer {
     nin _running = galon
     nin _app;
@@ -247,6 +259,20 @@ kulu HttpServer {
         nii ale._running segin;
         ale._running = tien;
         ale._app.run_()
+    }
+}
+
+kulu Util {
+    dunan dialen resolveName(host, service, fn)
+    dunan dialen netInterfaces
+    dialen resolveName(host) {
+        segin niin Util.resolveName(host, gansan)
+    }
+    dialen resolveName(host, service) {
+        nin d = Djuru.sissanTa
+        segin niin DogodaBaga.await_ { Util.resolveName(host, service) { dns =>
+            DogodaBaga.resume_(d, dns)
+        }}
     }
 }
 

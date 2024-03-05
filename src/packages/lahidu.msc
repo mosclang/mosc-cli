@@ -1,0 +1,42 @@
+kabo "scheduler" nani DogodaBaga
+
+kulu Lahidu {
+    nin _djuru
+    nin _handler
+    nin _success = Tii.kura { value =>
+        DogodaBaga.resume_(_djuru, value)
+    }
+    nin _error = Tii.kura { value =>
+         DogodaBaga.resume_(_djuru, value)
+    }
+    dilan kura(handler) {
+        nii handler.arity != 2 Djuru.atike("Invalid Lahidu handler")
+        ale._handler = handler
+    }
+
+    dialen taa(job) {
+        segin niin Lahidu.kura
+    }
+    dialen konon(lahidu) {
+
+    }
+    dialen tiime() {}
+    dialen tiime(value) {}
+
+    aladie_() {
+        DogodaBaga.aFaraAkan {
+             ale._handler.weele(ale._success, ale._error)
+        }
+        DogodaBaga.trigger()
+    }
+    tiimena() {}
+    tienna() {}
+}
+
+Lahidu.taa {
+    Gafe.dayelen("")
+}.tiimena {
+
+}.tienna {
+
+}

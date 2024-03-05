@@ -1,0 +1,65 @@
+kabo "scheduler" nani DogodaBaga
+kabo "timer" nani WaatiMassa
+
+kulu Lahidu {
+    nin _djuru
+    nin _handler
+    nin _success = Tii.kura {}
+    nin _error = Tii.kura {}
+    nin state = -1
+    dilan kura(handler) {
+        nii handler.arity != 2 Djuru.tike("Invalid Lahidu handler")
+        ale._handler = handler
+    }
+
+    dialen konon(lahidu) {
+        nin d = Djuru.sissanTa
+        lahidu.tiimena { v =>
+            DogodaBaga.resume_(d, v)
+        }
+        segin niin DogodaBaga.runNextScheduled_()
+    }
+    dialen tiime() { Lahidu.kura {(res, rej) => res.weele()} }
+    dialen tiime(value) { Lahidu.kura {(res, rej) => res.weele(value)} }
+
+    aladie_() {
+        nii ale.state != -1 segin;
+        ale.state = 0
+        DogodaBaga.nextTick {
+             ale._handler.weele(Tii.kura { v =>
+                ale.state = 1
+                ale._success.weele(v)
+             }, Tii.kura { e =>
+                ale.state = 1
+                ale._error.weele(e)
+             })
+        }
+
+    }
+    tiimena(fn) {
+        ale._success = fn
+        ale.aladie_()
+    }
+    tienna(fn) {
+        ale._error = fn
+        ale.aladie_()
+    }
+}
+
+Lahidu.tiime("Molo").tiimena {v =>
+    WaatiMassa.sunogo(4000)
+    A.yira("Hello:: $v")
+}
+Lahidu.tiime("Ali").tiimena {v =>
+    WaatiMassa.sunogo(2000)
+    A.yira("Hello:: $v")
+}
+nin p = Lahidu.kura {res, rej =>
+    WaatiMassa.sunogo(4000)
+    res.weele("After 4000ms waiting")
+}
+# p.tiimena{v => A.yira(v) }
+
+A.yira("Hello Guye")
+A.yira(Lahidu.konon(p))
+A.yira("Hello Sam")

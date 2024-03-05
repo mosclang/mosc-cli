@@ -115,6 +115,7 @@ extern void stdoutFlush(Djuru *djuru);
 extern void stderrWrite(Djuru *djuru);
 
 extern void schedulerCaptureMethods(Djuru *djuru);
+extern void scheduleNextTick(Djuru *djuru);
 
 extern void timerStartTimer(Djuru *djuru);
 
@@ -147,97 +148,118 @@ extern void httpServerTraceMethod(Djuru *djuru);
 extern void httpServerWsMethod(Djuru *djuru);
 // Ws
 
-extern void wsEnd(Djuru* djuru);
+extern void wsEnd(Djuru *djuru);
 
-extern void wsCork(Djuru* djuru);
+extern void wsCork(Djuru *djuru);
 
-extern void wsClose(Djuru* djuru);
+extern void wsClose(Djuru *djuru);
 
-extern void wsRemoteAddress(Djuru* djuru);
+extern void wsRemoteAddress(Djuru *djuru);
 
-extern void wsPublish(Djuru* djuru);
+extern void wsPublish(Djuru *djuru);
 
-extern void wsPublishWithOptions(Djuru* djuru);
+extern void wsPublishWithOptions(Djuru *djuru);
 
-extern void wsSend(Djuru* djuru);
+extern void wsSend(Djuru *djuru);
 
-extern void wsSubscribe(Djuru* djuru);
+extern void wsSubscribe(Djuru *djuru);
 
-extern void wsUnsubscribe(Djuru* djuru);
+extern void wsUnsubscribe(Djuru *djuru);
 
-extern void wsTopicForEach(Djuru* djuru);
+extern void wsTopicForEach(Djuru *djuru);
 
-extern void wsBufferedAmount(Djuru* djuru);
+extern void wsBufferedAmount(Djuru *djuru);
 
 // HttpRequest methods
 extern void httpServerReqDestroy(void *data);
 
-extern void httpServerReqBody(Djuru* djuru);
+extern void httpServerReqBody(Djuru *djuru);
 
-extern void httpServerReqParam(Djuru* djuru);
+extern void httpServerReqParam(Djuru *djuru);
 
-extern void httpServerReqRemoteAddress(Djuru* djuru);
+extern void httpServerReqRemoteAddress(Djuru *djuru);
 
-extern void httpServerReqQuery(Djuru* djuru);
+extern void httpServerReqQuery(Djuru *djuru);
 
-extern void httpServerReqMethod(Djuru* djuru);
+extern void httpServerReqMethod(Djuru *djuru);
 
-extern void httpServerReqMethodCaseSensitive(Djuru* djuru);
+extern void httpServerReqMethodCaseSensitive(Djuru *djuru);
 
-extern void httpServerReqOnAbort(Djuru* djuru);
+extern void httpServerReqOnAbort(Djuru *djuru);
 
-extern void httpServerReqOnData(Djuru* djuru);
+extern void httpServerReqOnData(Djuru *djuru);
 
-extern void httpServerReqHeader(Djuru* djuru);
+extern void httpServerReqHeader(Djuru *djuru);
 
-extern void httpServerReqHeaders(Djuru* djuru);
+extern void httpServerReqHeaders(Djuru *djuru);
 
-extern void httpServerReqUrl(Djuru* djuru);
+extern void httpServerReqUrl(Djuru *djuru);
 
-extern void httpServerReqFullUrl(Djuru* djuru);
+extern void httpServerReqFullUrl(Djuru *djuru);
 
-extern void httpServerReqSetYield(Djuru* djuru);
+extern void httpServerReqSetYield(Djuru *djuru);
 
-extern void httpServerReqYield(Djuru* djuru);
+extern void httpServerReqYield(Djuru *djuru);
 
-extern void httpServerReqIsAncient(Djuru* djuru);
+extern void httpServerReqIsAncient(Djuru *djuru);
 
 // HttpResponse Methods
-extern void httpServerResEnd(Djuru* djuru);
+extern void httpServerResEnd(Djuru *djuru);
 
-extern void httpServerResEndWithoutBody(Djuru* djuru);
+extern void httpServerResEndWithoutBody(Djuru *djuru);
 
-extern void httpServerResPause(Djuru* djuru);
+extern void httpServerResPause(Djuru *djuru);
 
-extern void httpServerResResume(Djuru* djuru);
+extern void httpServerResResume(Djuru *djuru);
 
-extern void httpServerResWrite(Djuru* djuru);
+extern void httpServerResWrite(Djuru *djuru);
 
-extern void httpServerResWriteContinue(Djuru* djuru);
+extern void httpServerResWriteContinue(Djuru *djuru);
 
-extern void httpServerResWriteStatus(Djuru* djuru);
+extern void httpServerResWriteStatus(Djuru *djuru);
 
-extern void httpServerResWriteHeader(Djuru* djuru);
+extern void httpServerResWriteHeader(Djuru *djuru);
 
-extern void httpServerResWriteHeaderInt(Djuru* djuru);
+extern void httpServerResWriteHeaderInt(Djuru *djuru);
 
-extern void httpServerResHasResponded(Djuru* djuru);
+extern void httpServerResHasResponded(Djuru *djuru);
 
-extern void httpServerResOnWritable(Djuru* djuru);
+extern void httpServerResOnWritable(Djuru *djuru);
 
-extern void httpServerResTryEnd(Djuru* djuru);
+extern void httpServerResTryEnd(Djuru *djuru);
 
-extern void httpServerResCork(Djuru* djuru);
+extern void httpServerResCork(Djuru *djuru);
 
-extern void httpServerListen(Djuru* djuru);
+extern void httpServerListen(Djuru *djuru);
 
-extern void httpServerRun(Djuru* djuru);
+extern void httpServerRun(Djuru *djuru);
 
-extern void httpServerStop(Djuru* djuru);
+extern void httpServerStop(Djuru *djuru);
 
-extern void httpServerPublish(Djuru* djuru);
+extern void httpServerPublish(Djuru *djuru);
 
-extern void httpServerNumSubscriber(Djuru* djuru);
+extern void httpServerNumSubscriber(Djuru *djuru);
+
+extern void socketInit(Djuru *djuru);
+
+extern void socketDestroy(void *handle);
+
+extern void socketBind(Djuru *djuru);
+
+extern void socketListen(Djuru *djuru);
+
+extern void socketAccept(Djuru *djuru);
+
+extern void socketRead(Djuru *djuru);
+
+extern void socketConnect(Djuru *djuru);
+
+extern void socketWrite(Djuru *djuru);
+
+extern void socketClose(Djuru *djuru);
+
+extern void dnsQuery(Djuru *djuru);
+extern void networkInterfaces(Djuru *djuru);
 
 
 
@@ -341,6 +363,7 @@ static ModuleRegistry coreCliModules[] =
                 MODULE(scheduler)
                                 CLASS(DogodaBaga)
                                                 STATIC_METHOD("captureMethods_()", schedulerCaptureMethods)
+                                                STATIC_METHOD("nextTick(_)", scheduleNextTick)
                                 END_CLASS
                 END_MODULE
                 MODULE(timer)
@@ -420,6 +443,22 @@ static ModuleRegistry coreCliModules[] =
                                 END_CLASS
                                 CLASS(HttpServer)
                                                 STATIC_METHOD("ensureGlobalInit_()", ensureHttpComponentsInit)
+                                END_CLASS
+                                CLASS(Socket)
+
+                                                ALLOCATE(socketInit)
+                                                FINALIZE(socketDestroy)
+                                                METHOD("connect(_,_)", socketConnect)
+                                                METHOD("bind(_,_)", socketBind)
+                                                METHOD("listen(_)", socketListen)
+                                                METHOD("read()", socketRead)
+                                                METHOD("write(_)", socketWrite)
+                                                METHOD("accept(_)", socketAccept)
+                                                METHOD("close()", socketClose)
+                                END_CLASS
+                                CLASS(Util)
+                                                STATIC_METHOD("resolveName(_,_,_)", dnsQuery)
+                                                STATIC_METHOD("netInterfaces", networkInterfaces)
                                 END_CLASS
 
                 END_MODULE

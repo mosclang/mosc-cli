@@ -1,0 +1,29 @@
+kabo "net" nani Socket, Util
+
+nin socket
+socket = Socket.kura({
+    accept: Tii.kura {
+        A.yira("New CLient connection")
+        nin client
+        client = Socket.kura({
+            data: Tii.kura { data =>
+                nii !data segin
+                A.yira("Data from client:: $data")
+                client.write("Hello Client")
+            }
+        })
+        nii (socket.accept(client) == 0) {
+            client.read()
+        }
+    },
+    error: Tii.kura { code, source =>
+        A.yira("Socket error from $source: $code")
+    }
+})
+socket.bind("127.0.0.1", 5000)
+nii(socket.listen(128) == 0) {
+    A.yira("Listening for connection on 5000")
+    A.yira("IP for oms.orangemali.com is ${Util.resolveName("oms.orangemali.com")}")
+
+    # Util.resolveName("oms.orangemali.com", gansan) { dns => A.yira("IP for oms.orangemali.com is $dns")}
+}

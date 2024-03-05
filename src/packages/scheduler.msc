@@ -29,12 +29,13 @@ kulu DogodaBaga {
 
   dialen trigger() {
     nin current = Djuru.sissanTa
-    DogodaBaga.aFaraAkan( Tii.kura {
+    DogodaBaga.aFaraAkan {
         current.alaTeme()
-    })
+    }
     DogodaBaga.runNextScheduled_();
   }
   dunan dialen captureMethods_()
+  dunan dialen nextTick(cb)
 }
 
 DogodaBaga.captureMethods_()
