@@ -605,8 +605,8 @@ void MSCEnsureFrames(Djuru* djuru, int needed) {
     }
     int capacity = powerOf2Ceil(needed);
     djuru->frames = (CallFrame *) MSCReallocate(djuru->vm->gc, djuru->frames,
-                                           sizeof(CallFrame) * djuru->frameCapacity,
-                                           sizeof(CallFrame) * capacity);
+                                                sizeof(CallFrame) * djuru->frameCapacity,
+                                                sizeof(CallFrame) * capacity);
     djuru->frameCapacity = capacity;
 }
 
@@ -901,8 +901,6 @@ Module *MSCModuleFrom(MVM *vm, String *name) {
 
 
 Value MSCStringFromCharsWithLength(MVM *vm, const char *text, uint32_t length) {
-    // Allow NULL if the string is empty since byte buffers don't allocate any
-    // characters for a zero-length string.
     String *string = MSCStringNew(vm, text, length);
     return OBJ_VAL(string);
 }
@@ -916,6 +914,7 @@ String *MSCStringNew(MVM *vm, const char *text, uint32_t length) {
     String *string = MSCStringAllocate(vm, length);
     // Copy the string (if given one).
     if (length > 0 && text != NULL) memcpy(string->value, text, length);
+    string->value[length] = '\0';
     // printf("\nInit string %s", this->value);
     hashString(string);
     return string;

@@ -115,6 +115,7 @@ extern void stdoutFlush(Djuru *djuru);
 extern void stderrWrite(Djuru *djuru);
 
 extern void schedulerCaptureMethods(Djuru *djuru);
+
 extern void scheduleNextTick(Djuru *djuru);
 
 extern void timerStartTimer(Djuru *djuru);
@@ -240,26 +241,92 @@ extern void httpServerPublish(Djuru *djuru);
 
 extern void httpServerNumSubscriber(Djuru *djuru);
 
-extern void socketInit(Djuru *djuru);
+
+extern void dnsQuery(Djuru *djuru);
+
+extern void networkInterfaces(Djuru *djuru);
+
+// ============= Socket functons ==========
+
+extern void socketContextInit(Djuru *djuru);
+
+extern void socketContextDestroy(void *handle);
 
 extern void socketDestroy(void *handle);
 
-extern void socketBind(Djuru *djuru);
+extern void socketContextListen(Djuru *djuru);
 
-extern void socketListen(Djuru *djuru);
+extern void socketContextListenUnix(Djuru *djuru);
 
-extern void socketAccept(Djuru *djuru);
+extern void socketContextConnect(Djuru *djuru);
 
-extern void socketRead(Djuru *djuru);
+extern void socketContextClose(Djuru *djuru);
 
-extern void socketConnect(Djuru *djuru);
+extern void socketContextSetOpenEvent(Djuru *djuru);
+
+extern void socketContextSetCloseEvent(Djuru *djuru);
+
+extern void socketContextSetDataEvent(Djuru *djuru);
+
+extern void socketContextSetEndEvent(Djuru *djuru);
+
+extern void socketContextSetWritableEvent(Djuru *djuru);
+
+extern void socketContextSetErrorEvent(Djuru *djuru);
+
+extern void socketContextSetServerNameEvent(Djuru *djuru);
+
+
+extern void socketRemoteAddress(Djuru *djuru);
+
+extern void socketRemotePort(Djuru *djuru);
+
+extern void socketLocalPort(Djuru *djuru);
+
+extern void socketIsEstablished(Djuru *djuru);
+
+extern void socketIsClosed(Djuru *djuru);
+
+extern void socketIsShutdown(Djuru *djuru);
 
 extern void socketWrite(Djuru *djuru);
+extern void socketTimeout(Djuru *djuru);
 
 extern void socketClose(Djuru *djuru);
 
-extern void dnsQuery(Djuru *djuru);
-extern void networkInterfaces(Djuru *djuru);
+extern void socketFlush(Djuru *djuru);
+extern void socketSetData(Djuru *djuru);
+
+extern void socketGetData(Djuru *djuru);
+
+
+
+
+
+
+// ============= UVSocket functons ==========
+
+
+extern void uvSocketInit(Djuru *djuru);
+
+extern void uvSocketDestroy(void *handle);
+
+extern void uvSocketBind(Djuru *djuru);
+
+extern void uvSocketListen(Djuru *djuru);
+
+extern void uvSocketAccept(Djuru *djuru);
+
+extern void uvSocketRead(Djuru *djuru);
+
+extern void uvSocketConnect(Djuru *djuru);
+
+extern void uvSocketWrite(Djuru *djuru);
+
+extern void uvSocketClose(Djuru *djuru);
+
+
+extern void initUVSocket(Djuru *djuru);
 
 
 
@@ -444,23 +511,53 @@ static ModuleRegistry coreCliModules[] =
                                 CLASS(HttpServer)
                                                 STATIC_METHOD("ensureGlobalInit_()", ensureHttpComponentsInit)
                                 END_CLASS
-                                CLASS(Socket)
+                                CLASS(NativeSocketContext)
+                                                ALLOCATE(socketContextInit)
+                                                FINALIZE(socketContextDestroy)
+                                                METHOD("connect(_,_,_,_)", socketContextConnect)
+                                                METHOD("listen(_,_,_)", socketContextListen)
+                                                METHOD("listen(_,_)", socketContextListenUnix)
+                                                METHOD("close()", socketContextClose)
+                                                METHOD("onOpen=(_)", socketContextSetOpenEvent)
+                                                METHOD("onWritable=(_)", socketContextSetWritableEvent)
+                                                METHOD("onEnd=(_)", socketContextSetEndEvent)
+                                                METHOD("onData=(_)", socketContextSetDataEvent)
+                                                METHOD("onError=(_)", socketContextSetErrorEvent)
+                                                METHOD("onClose=(_)", socketContextSetCloseEvent)
+                                                METHOD("onServerName=(_)", socketContextSetServerNameEvent)
+                                END_CLASS
+                                CLASS(NativeSocket)
 
-                                                ALLOCATE(socketInit)
                                                 FINALIZE(socketDestroy)
-                                                METHOD("connect(_,_)", socketConnect)
-                                                METHOD("bind(_,_)", socketBind)
-                                                METHOD("listen(_)", socketListen)
-                                                METHOD("read()", socketRead)
                                                 METHOD("write(_)", socketWrite)
-                                                METHOD("accept(_)", socketAccept)
+                                                METHOD("established", socketIsEstablished)
+                                                METHOD("closed", socketIsClosed)
                                                 METHOD("close()", socketClose)
+                                                METHOD("flush()", socketFlush)
+                                                METHOD("timeout(_)", socketTimeout)
+                                                METHOD("data=(_)", socketSetData)
+                                                METHOD("data", socketGetData)
+                                                METHOD("shutdown", socketIsShutdown)
+                                                METHOD("remoteAddress", socketRemoteAddress)
+                                                METHOD("remotePort", socketRemotePort)
+                                                METHOD("localPort", socketLocalPort)
                                 END_CLASS
                                 CLASS(Util)
                                                 STATIC_METHOD("resolveName(_,_,_)", dnsQuery)
                                                 STATIC_METHOD("netInterfaces", networkInterfaces)
                                 END_CLASS
-
+                                CLASS(UVSocket)
+                                                ALLOCATE(uvSocketInit)
+                                                FINALIZE(uvSocketDestroy)
+                                                STATIC_METHOD("initUVSocket()", initUVSocket)
+                                                METHOD("connect(_,_)", uvSocketConnect)
+                                                METHOD("bind(_,_)", uvSocketBind)
+                                                METHOD("listen(_)", uvSocketListen)
+                                                METHOD("read()", uvSocketRead)
+                                                METHOD("write(_)", uvSocketWrite)
+                                                METHOD("accept(_)", uvSocketAccept)
+                                                METHOD("close()", uvSocketClose)
+                                END_CLASS
                 END_MODULE
 
                 SENTINEL_MODULE

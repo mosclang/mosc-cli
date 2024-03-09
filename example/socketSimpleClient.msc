@@ -1,18 +1,29 @@
-kabo "net" nani Socket
+kabo "net" nani Socket, SocketContext
 
-nin socket
-socket = Socket.kura({
-    connect: Tii.kura {
-        A.yira("Connected to server")
-        socket.write("Hello Server")
+nin context = SocketContext.kura(1, {
+    open: Tii.kura { socket, ip, isClient =>
+        A.yira("Connected to server $ip $isClient")
+        socket.write("GET / HTTP/1.1\r\nHost: www.google.com\r\nConnection: close\r\n\r\n")
     },
-    error: Tii.kura { code, source =>
+
+    error: Tii.kura { socket, code, source =>
         A.yira("Socket error from $source: $code")
     },
-    data: Tii.kura {data =>
-        A.yira("Data from server: $data")
+    data: Tii.kura {socket, data =>
+        nii (!socket.data) {
+          socket.data = {resp: ""}
+        }
+        socket.data["resp"] = "${socket.data["resp"]}$data"
+        # A.yira("Data with ${data.hakan}")
+        #nii (data.beBanNiin("\r\n")) {
+         # socket.close()
+        #}
+    },
+    close: Tii.kura { socket =>
+        A.yira("Closed ${socket.data}")
         socket.close()
-    }
+    },
+    backPressing: tien,
+    idleTime: 5
 })
-socket.connect("127.0.0.1", 5000)
-socket.read()
+context.connect("www.google.com", 443)

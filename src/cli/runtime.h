@@ -8,6 +8,7 @@
 #include "uv.h"
 #include "msc.h"
 
+typedef void (*ShutdownListener)();
 extern char* rootDirectory;
 
 // Executes the Wren script at [path] in a new VM.
@@ -28,6 +29,8 @@ MVM* getVM();
 uv_loop_t* getLoop();
 
 void enqueueMicrotask(MSCHandle *callback);
+
+void registerForShutdown(ShutdownListener listener);
 
 // Get the exit code the CLI should exit with when done.
 int getExitCode();

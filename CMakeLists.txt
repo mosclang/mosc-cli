@@ -56,7 +56,7 @@ ENDFUNCTION()
 
 
 file(GLOB SOURCE_FILES_C src/**/*.c src/**/*.cpp)
-file(GLOB SOURCE_FILES_H src/**/*.h)
+file(GLOB SOURCE_FILES_H src/**/*.h src/**/**/*.h)
 file(GLOB SOURCE_FILES_INC src/**/*.inc)
 
 LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C} ${SOURCE_FILES_H} ${SOURCE_FILES_INC})
@@ -64,6 +64,7 @@ LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C} ${SOURCE_FILES_H} ${SOURCE_FILES_
 LIST(APPEND MSC_INCLUDE_DIRS
         src/cli
         src/packages
+        src/packages/helpers
         )
 
 #include mosc dependancy

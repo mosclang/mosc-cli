@@ -3,8 +3,7 @@ kabo "io" nani Stdin
 kabo "repl" nani Chars
 kabo "json" nani JSON
 
-
-dunan kulu Socket {
+dunan kulu UVSocket {
   dilan kura(options) {}
   dunan bind(ip, port)
   dunan connect(ip, port)
@@ -13,6 +12,144 @@ dunan kulu Socket {
   dunan close()
   dunan read()
   dunan listen(backlog)
+  dunan dialen initUVSocket()
+}
+
+dunan kulu NativeSocketContext {
+  dilan kura(ssl, options) {}
+  dunan connect(ip, port, options, local)
+  dunan listen(ip, options) #listenUnix
+  dunan listen(ip, port, options)
+  dunan close()
+
+  connect(ip, port) {
+    segin niin ale.connect(ip, port, gansan, 0)
+  }
+
+  dunan onData=(v)
+  dunan onOpen=(v)
+  dunan onError=(v)
+  dunan onClose=(v)
+  dunan onEnd=(v)
+  dunan onWritable=(v)
+  dunan onServerName=(v)
+
+}
+dunan kulu NativeSocket {
+  dunan write(data)
+  dunan close()
+  dunan flush()
+  dunan timeout(timeout)
+  dunan established
+  dunan closed
+  dunan shutdown
+  dunan remoteAddress
+  dunan remotePort
+  dunan localPort
+  dunan data=(v)
+  dunan data
+}
+kulu SocketContext {
+  nin _ctx
+  nin backPressing = galon
+  nin toBackPress = ""
+  nin options
+  nin idleTime;
+  dilan kura(ssl, options) {
+    ale.options = {...options}
+    ale._ctx = NativeSocketContext.kura(ssl, {
+        open: Tii.kura { native, ip, isClient =>
+            nin socket = Socket.kura(native, ale)
+            socket.timeout(ale.idleTime)
+            ale.options["open"]?.weele(socket, ip, isClient)
+        },
+        close: Tii.kura { native =>
+            ale.options["close"]?.weele(Socket.kura(native, ale))
+        },
+        error: Tii.kura { native, code, source =>
+            ale.options["error"]?.weele(Socket.kura(native, ale), code, source)
+        },
+        writable: Tii.kura { native =>
+            nin socket = Socket.kura(native, ale)
+            nii (ale.backPressing) {
+                ale.backPress(socket)
+            }
+            socket.timeout(ale.idleTime)
+            ale.options["writable"]?.weele(socket)
+        },
+        end: Tii.kura { native =>
+            ale.options["end"]?.weele(Socket.kura(native, ale))
+        },
+        data: Tii.kura { native, data =>
+            ale.options["data"]?.weele(Socket.kura(native, ale), data)
+        },
+        serverName: Tii.kura { name =>
+            ale.options["serverName"]?.weele(name)
+        }
+    })
+    ale.backPressing = options["backPressing"] ?? galon
+    ale.idleTime = options["idleTime"] ?? 30
+  }
+  connect(ip, port, options, local) {
+    segin niin ale._ctx.connect(ip, port, options, local)
+  }
+  listen(ip, options) { #listenUnix
+    segin niin ale._ctx.listen(ip, options)
+  }
+  listen(ip, port, options) {
+    segin niin ale._ctx.listen(ip, port, options)
+  }
+  close() {
+    segin niin ale._ctx.close()
+  }
+
+  connect(ip, port) {
+    segin niin ale.connect(ip, port, gansan, 0)
+  }
+
+  onData=(v) { ale.options["data"] = v }
+  onOpen=(v) { ale.options["open"] = v }
+  onError=(v) { ale.options["error"] = v }
+  onClose=(v) {ale.options["close"] = v }
+  onEnd=(v) { ale.options["end"] = v }
+  onWritable=(v) { ale.options["writable"] = v }
+  onServerName=(v) { ale.options["serverName"] = v }
+
+  backPress(s) {
+    nii (!ale.backPressing || !ale.toBackPress) {
+        segin niin galon
+    }
+    nin wrote = s.write(ale.toBackPress)
+    ale.toBackPress = nii wrote < ale.toBackPress.hakan ale.toBackPress[wrote..-1] note gansan
+    segin niin tien
+  }
+  appendForBackPress(data) {
+    ale.toBackPress = ale.toBackPress + data
+  }
+}
+kulu Socket {
+    nin _handle
+    nin ctx;
+    dilan kura(native, ctx) {
+        ale._handle = native
+        ale.ctx = ctx
+    }
+    write(data) {
+        nin wrote = ale._handle.write(data)
+        nii wrote < data.hakan ale.ctx.appendForBackPress(data[wrote..-1])
+        segin niin wrote
+    }
+    close() { ale._handle.close() }
+    flush() { ale._handle.flush() }
+    timeout(timeout) { ale._handle.timeout(timeout) }
+    established { ale._handle.established }
+    closed { ale._handle.closed }
+    shutdown { ale._handle.shutdown }
+    remoteAddress { ale._handle.remoteAddress }
+    remotePort { ale._handle.remotePort }
+    localPort { ale._handle.localPort }
+    data=(v) { ale._handle.data = v }
+    data { ale._handle.data }
 }
 
 dunan kulu HttpReqRes {
@@ -275,7 +412,7 @@ kulu Util {
         }}
     }
 }
-
+UVSocket.initUVSocket()
 HttpServer.ensureGlobalInit_()
 
 

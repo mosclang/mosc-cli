@@ -4,9 +4,11 @@
 
 #include <MVM.h>
 #include <libuwebsockets.h>
+#include <internal/internal.h>
 #include "net.h"
 #include "runtime.h"
 #include "scheduler.h"
+#include "msc_ussocket.h"
 
 
 struct ByteArrayList {
@@ -91,6 +93,7 @@ struct HttpRequestBindBuffer {
 static MSCHandle *httpReqResClass;
 static MSCHandle *httpServerClass;
 static MSCHandle *wsSocketClass;
+static MSCHandle *socketContextClass;
 static MSCHandle *socketClass;
 static MSCHandle *fnCall;
 static MSCHandle *fnCall1;
@@ -611,15 +614,17 @@ void ensureHttpComponentsInit(Djuru *djuru) {
     httpServerClass = MSCGetSlotHandle(djuru, 0);
     MSCGetVariable(djuru, "net", "WebSocket", 0);
     wsSocketClass = MSCGetSlotHandle(djuru, 0);
-    MSCGetVariable(djuru, "net", "Socket", 0);
+    MSCGetVariable(djuru, "net", "NativeSocket", 0);
     socketClass = MSCGetSlotHandle(djuru, 0);
+    MSCGetVariable(djuru, "net", "NativeSocketContext", 0);
+    socketContextClass = MSCGetSlotHandle(djuru, 0);
     MVM *vm = djuru->vm;
     fnCall = MSCMakeCallHandle(vm, "weele()");
     fnCall1 = MSCMakeCallHandle(vm, "weele(_)");
     fnCall2 = MSCMakeCallHandle(vm, "weele(_,_)");
     fnCall3 = MSCMakeCallHandle(vm, "weele(_,_,_)");
     fnCall4 = MSCMakeCallHandle(vm, "weele(_,_,_,_)");
-
+    registerForShutdown(httpShutdown);
 }
 
 static void releaseApp(struct HttpServer *server) {
@@ -801,7 +806,6 @@ static struct WebSocket *createWebSocket(Djuru *djuru, int slot, uws_websocket_t
 }
 
 static void wsOnCloseHandler(uws_websocket_t *ws, int code, const char *message, size_t length, void *user_data) {
-    printf("wsOnCloseHandler:: %.*s, code: %d\n", (int) length, message, code);
     struct HttpRequestBind *handle = (struct HttpRequestBind *) user_data;
     if (!handle->wsHandlers->close) {
         return;
@@ -816,7 +820,6 @@ static void wsOnCloseHandler(uws_websocket_t *ws, int code, const char *message,
 }
 
 static void wsOnOpenHandler(uws_websocket_t *ws, void *user_data) {
-    printf("wsOnOpenHandler::\n");
     struct HttpRequestBind *handle = (struct HttpRequestBind *) user_data;
     if (!handle->wsHandlers->open) {
         return;
@@ -829,7 +832,6 @@ static void wsOnOpenHandler(uws_websocket_t *ws, void *user_data) {
 }
 
 static void wsOnDrainHandler(uws_websocket_t *ws, void *user_data) {
-    printf("wsOnDrainHandler::\n");
     struct HttpRequestBind *handle = (struct HttpRequestBind *) user_data;
     if (!handle->wsHandlers->drain) {
         return;
@@ -843,7 +845,6 @@ static void wsOnDrainHandler(uws_websocket_t *ws, void *user_data) {
 
 static void
 wsOnMessageHandler(uws_websocket_t *ws, const char *message, size_t length, uws_opcode_t opcode, void *user_data) {
-    printf("wsOnMessageHandler::\n");
     struct HttpRequestBind *handle = (struct HttpRequestBind *) user_data;
     if (!handle->wsHandlers->message) {
         return;
@@ -858,7 +859,6 @@ wsOnMessageHandler(uws_websocket_t *ws, const char *message, size_t length, uws_
 }
 
 static void wsPongHandler(uws_websocket_t *ws, const char *message, size_t length, void *user_data) {
-    printf("wsPongHandler::\n");
     struct HttpRequestBind *handle = (struct HttpRequestBind *) user_data;
     if (!handle->wsHandlers->pong) {
         return;
@@ -872,7 +872,6 @@ static void wsPongHandler(uws_websocket_t *ws, const char *message, size_t lengt
 }
 
 static void wsPingHandler(uws_websocket_t *ws, const char *message, size_t length, void *user_data) {
-    printf("wsPingHandler::\n");
     struct HttpRequestBind *handle = (struct HttpRequestBind *) user_data;
     if (!handle->wsHandlers->ping) {
         return;
@@ -886,7 +885,6 @@ static void wsPingHandler(uws_websocket_t *ws, const char *message, size_t lengt
 }
 
 static void wsUpgradeHandler(uws_res_t *res, uws_req_t *req, uws_socket_context_t *context, void *user_data) {
-    printf("wsUpgradeHandler::\n");
     struct HttpRequestBind *handle = (struct HttpRequestBind *) user_data;
     uws_res_on_aborted(handle->server->ssl, res, uwsOnReqAbort, NULL);
     if (!handle->wsHandlers->upgrade) {
@@ -906,7 +904,6 @@ static void wsUpgradeHandler(uws_res_t *res, uws_req_t *req, uws_socket_context_
 
 static void wsSubscriptionHandler(uws_websocket_t *ws, const char *topic_name, size_t topic_name_length,
                                   int new_number_of_subscriber, int old_number_of_subscriber, void *user_data) {
-    printf("wsSubscriptionHandler::\n");
     struct HttpRequestBind *handle = (struct HttpRequestBind *) user_data;
     if (!handle->wsHandlers->subscription) {
         return;
@@ -1157,6 +1154,9 @@ void httpShutdown() {
     if (socketClass) {
         MSCReleaseHandle(djuru, socketClass);
     }
+    if (socketContextClass) {
+        MSCReleaseHandle(djuru, socketContextClass);
+    }
     if (fnCall) {
         MSCReleaseHandle(djuru, fnCall);
     }
@@ -1178,258 +1178,9 @@ void httpShutdown() {
 }
 
 
-// ############################################################### Socket related functions #####################################################################
-
-
-
-typedef struct {
-    int ssl;
-    bool closed;
-    MSCHandle *acceptEvent;
-    MSCHandle *connectEvent;
-    MSCHandle *dataEvent;
-    MSCHandle *errorEvent;
-} SocketData;
-typedef struct {
-    uv_tcp_t *socket;
-    uv_buf_t buffer;
-    MSCHandle *guard;
-} SocketWriteRequest;
-
-void socketInit(Djuru *djuru) {
-    MSCSetSlotHandle(djuru, 0, socketClass);
-    uv_tcp_t *socket = MSCSetSlotNewExtern(djuru, 0, 0, sizeof(uv_tcp_t));
-    SocketData *data = malloc(sizeof(SocketData));
-    uv_tcp_init(getLoop(), socket);
-    socket->data = data;
-    data->ssl = 1;
-    data->acceptEvent = NULL;
-    data->dataEvent = NULL;
-    data->errorEvent = NULL;
-    data->connectEvent = NULL;
-    data->closed = false;
-    if(MSCGetSlotType(djuru, 1) != MSC_TYPE_MAP) {
-        return;
-    }
-    int slotCount = MSCGetSlotCount(djuru);
-    MSCEnsureSlots(djuru, 3);
-    MSCSetSlotString(djuru, 2, "accept");
-    MSCGetMapValue(djuru, 1, 2, 2);
-    if(MSCGetSlotType(djuru, 2) != MSC_TYPE_NULL) {
-        data->acceptEvent = MSCGetSlotHandle(djuru, 2);
-    }
-    MSCSetSlotString(djuru, 2, "data");
-    MSCGetMapValue(djuru, 1, 2, 2);
-    if(MSCGetSlotType(djuru, 2) != MSC_TYPE_NULL) {
-        data->dataEvent = MSCGetSlotHandle(djuru, 2);
-    }
-    MSCSetSlotString(djuru, 2, "connect");
-    MSCGetMapValue(djuru, 1, 2, 2);
-    if(MSCGetSlotType(djuru, 2) != MSC_TYPE_NULL) {
-        data->connectEvent = MSCGetSlotHandle(djuru, 2);
-    }
-    MSCSetSlotString(djuru, 2, "error");
-    MSCGetMapValue(djuru, 1, 2, 2);
-    if(MSCGetSlotType(djuru, 2) != MSC_TYPE_NULL) {
-        data->errorEvent = MSCGetSlotHandle(djuru, 2);
-    }
-    MSCEnsureSlots(djuru, slotCount);
-
-}
-static void socketCloseCB(uv_handle_t* handle) {}
-void socketDestroy(void *handle) {
-    uv_tcp_t *socket = (uv_tcp_t *) handle;
-    SocketData *data = socket->data;
-    if(data == NULL) {
-        return;
-    }
-    if (!data->closed) {
-        uv_close((uv_handle_t *) socket, socketCloseCB);
-    }
+void on_resolved(uv_getaddrinfo_t *resolver, int status, struct addrinfo *res) {
+    MSCHandle *cb = (MSCHandle *) resolver->data;
     Djuru *djuru = getCurrentThread();
-    if (data->acceptEvent != NULL) {
-        MSCReleaseHandle(djuru, data->acceptEvent);
-    }
-    if (data->connectEvent != NULL) {
-        MSCReleaseHandle(djuru, data->connectEvent);
-    }
-    if (data->dataEvent != NULL) {
-        MSCReleaseHandle(djuru, data->dataEvent);
-    }
-    if (data->errorEvent != NULL) {
-        MSCReleaseHandle(djuru, data->errorEvent);
-    }
-    free(data);
-}
-
-void raiseSockerError(SocketData *data, int code, const char *source) {
-    if (data->errorEvent == NULL) {
-        return;
-    }
-    Djuru *djuru = getCurrentThread();
-    MSCEnsureSlots(djuru, 3);
-    MSCSetSlotHandle(djuru, 0, data->errorEvent);
-    MSCSetSlotDouble(djuru, 1, code);
-    MSCSetSlotString(djuru, 2, source);
-    MSCCall(djuru, fnCall2);
-}
-
-void socketBind(Djuru *djuru) {
-    const char *ip = MSCGetSlotString(djuru, 1);
-    int port = (int) MSCGetSlotDouble(djuru, 2);
-    uv_tcp_t *socket = (uv_tcp_t *) MSCGetSlotExtern(djuru, 0);
-    struct sockaddr_in addr;
-    uv_ip4_addr(ip, port, &addr);
-
-    int res = uv_tcp_bind(socket, (const struct sockaddr *) &addr, 0);
-    MSCSetSlotDouble(djuru, 0, res);
-}
-
-void socketOnAcceptCallBack(uv_stream_t *s, int status) {
-    uv_tcp_t *socket = (uv_tcp_t *) s;
-    SocketData *data = (SocketData *) socket->data;
-    if (status < 0) {
-        raiseSockerError(data, status, "ACCEPT");
-        return;
-    }
-    if (data->acceptEvent == NULL) {
-        return;
-    }
-    Djuru *djuru = getCurrentThread();
-    MSCEnsureSlots(djuru, 1);
-    MSCSetSlotHandle(djuru, 0, data->acceptEvent);
-    MSCCall(djuru, fnCall);
-}
-
-void socketListen(Djuru *djuru) {
-    uv_tcp_t *socket = (uv_tcp_t *) MSCGetSlotExtern(djuru, 0);
-    int backlog = (int) MSCGetSlotDouble(djuru, 1);
-    int res = uv_listen((uv_stream_t *) socket, backlog, socketOnAcceptCallBack);
-    MSCSetSlotDouble(djuru, 0, res);
-}
-
-void socketAccept(Djuru *djuru) {
-    uv_stream_t *server = (uv_stream_t *) MSCGetSlotExtern(djuru, 0);
-    uv_stream_t *client = (uv_stream_t *) MSCGetSlotExtern(djuru, 1);
-    int res = uv_accept(server, client);
-    MSCSetSlotDouble(djuru, 0, res);
-}
-
-void socketAllocCb(uv_handle_t *handle,
-                   size_t suggestedSize,
-                   uv_buf_t *buf) {
-    buf->base = (char *) malloc(suggestedSize);
-    buf->len = suggestedSize;
-}
-
-
-void socketReadCb(uv_stream_t *stream,
-                  ssize_t nread,
-                  const uv_buf_t *buf) {
-    uv_tcp_t *socket = (uv_tcp_t *) stream;
-    SocketData *data = (SocketData *) socket->data;
-    if (nread < 0) {
-        if (nread != UV_EOF) {
-            free(buf->base);
-            raiseSockerError(data, (int) nread, "READ");
-            return;
-        }
-    }
-    if (data->dataEvent == NULL) {
-        free(buf->base);
-        return;
-    }
-    Djuru *djuru = getCurrentThread();
-    MSCEnsureSlots(djuru, 2);
-    MSCSetSlotHandle(djuru, 0, data->dataEvent);
-    if (nread == UV_EOF) {
-        MSCSetSlotNull(djuru, 1);
-    } else {
-        MSCSetSlotBytes(djuru, 1, buf->base, (size_t) nread);
-    }
-    free(buf->base);
-    MSCCall(djuru, fnCall1);
-}
-
-
-void socketRead(Djuru *djuru) {
-    uv_stream_t *socket = (uv_stream_t *) MSCGetSlotExtern(djuru, 0);
-    int res = uv_read_start(socket, socketAllocCb, socketReadCb);
-    MSCSetSlotDouble(djuru, 0, res);
-}
-
-void socketConnectCb(uv_connect_t *connect, int status) {
-    uv_tcp_t *socket = (uv_tcp_t *) connect->handle;
-    SocketData *data = (SocketData *) socket->data;
-    if (status < 0) {
-        raiseSockerError(data, status, "CONNECT");
-        return;
-    }
-    if (data->connectEvent == NULL) {
-        return;
-    }
-    Djuru *djuru = getCurrentThread();
-    MSCEnsureSlots(djuru, 1);
-    MSCSetSlotHandle(djuru, 0, data->connectEvent);
-    MSCCall(djuru, fnCall);
-    free(connect);
-}
-
-void socketConnect(Djuru *djuru) {
-    uv_tcp_t *socket = (uv_tcp_t *) MSCGetSlotExtern(djuru, 0);
-    uv_connect_t *connect = (uv_connect_t *) malloc(sizeof(uv_connect_t));
-    const char *ip = MSCGetSlotString(djuru, 1);
-    int port = (int) MSCGetSlotDouble(djuru, 2);
-
-    struct sockaddr_in addr;
-    uv_ip4_addr(ip, port, &addr);
-
-    int res = uv_tcp_connect(connect, socket, (const struct sockaddr *) &addr, socketConnectCb);
-    MSCSetSlotDouble(djuru, 0, res);
-}
-
-void socketWriteCb(uv_write_t *r, int status) {
-
-    SocketWriteRequest *req = (SocketWriteRequest *) r->data;
-
-    SocketData *data = (SocketData *) req->socket->data;
-    if (req->guard != NULL) {
-        MSCReleaseHandle(getCurrentThread(), req->guard);
-    }
-    free(req);
-    free(r);
-    printf("Wrote data to socket with status %d\n", status);
-    if (status < 0) {
-        raiseSockerError(data, status, "WRITE");
-        return;
-    }
-
-}
-
-void socketWrite(Djuru *djuru) {
-    uv_stream_t *socket = (uv_stream_t *) MSCGetSlotExtern(djuru, 0);
-    uv_write_t *req = (uv_write_t *) malloc(sizeof(uv_write_t));
-    SocketWriteRequest *socketWriteReq = (SocketWriteRequest *) malloc(sizeof(uv_write_t));
-    req->data = socketWriteReq;
-
-    int length;
-    const char *data = MSCGetSlotBytes(djuru, 1, &length);
-    printf("Writing %.*s to socket\n", length, data);
-    socketWriteReq->guard = MSCGetSlotHandle(djuru, 1); // keep data so that it's not garbage collected
-    socketWriteReq->buffer = uv_buf_init((char *) data, (unsigned int) length);
-    socketWriteReq->socket = (uv_tcp_t *) socket;
-    uv_write(req, socket, &socketWriteReq->buffer, 1, socketWriteCb);
-}
-
-void socketClose(Djuru *djuru) {
-    uv_tcp_t *socket = (uv_tcp_t *) MSCGetSlotExtern(djuru, 0);
-    uv_close((uv_handle_t *) socket, NULL);
-    ((SocketData*)socket->data)->closed = true;
-
-}
- void on_resolved(uv_getaddrinfo_t *resolver, int status, struct addrinfo *res) {
-    MSCHandle* cb = (MSCHandle*) resolver->data;
-    Djuru* djuru = getCurrentThread();
     MSCEnsureSlots(djuru, 2);
     MSCSetSlotHandle(djuru, 0, cb);
     if (status < 0) {
@@ -1440,13 +1191,14 @@ void socketClose(Djuru *djuru) {
         return;
     }
     char addr[17] = {'\0'};
-    uv_ip4_name((struct sockaddr_in*) res->ai_addr, addr, 16);
+    uv_ip4_name((struct sockaddr_in *) res->ai_addr, addr, 16);
     free(resolver);
     uv_freeaddrinfo(res);
     MSCSetSlotString(djuru, 1, addr);
     MSCCall(djuru, fnCall1);
     MSCReleaseHandle(djuru, cb);
 }
+
 void dnsQuery(Djuru *djuru) {
     struct addrinfo hints;
     hints.ai_family = PF_INET;
@@ -1455,8 +1207,8 @@ void dnsQuery(Djuru *djuru) {
     hints.ai_flags = 0;
     uv_getaddrinfo_t *resolver = malloc(sizeof(uv_getaddrinfo_t));
     resolver->data = MSCGetSlotHandle(djuru, 3);
-    const char* host = MSCGetSlotString(djuru, 1);
-    const char* service = MSCGetSlotType(djuru, 2) == MSC_TYPE_NULL ? NULL : MSCGetSlotString(djuru, 2);
+    const char *host = MSCGetSlotString(djuru, 1);
+    const char *service = MSCGetSlotType(djuru, 2) == MSC_TYPE_NULL ? NULL : MSCGetSlotString(djuru, 2);
     int res = uv_getaddrinfo(getLoop(), resolver, on_resolved, host, service, &hints);
     MSCSetSlotDouble(djuru, 0, res);
 }
@@ -1487,8 +1239,7 @@ void networkInterfaces(Djuru *djuru) {
             MSCSetSlotString(djuru, 2, "address");
             MSCSetSlotString(djuru, 3, buf);
             MSCSetMapValue(djuru, 1, 2, 3);
-        }
-        else if (interface.address.address4.sin_family == AF_INET6) {
+        } else if (interface.address.address4.sin_family == AF_INET6) {
             uv_ip6_name(&interface.address.address6, buf, sizeof(buf));
             MSCSetSlotString(djuru, 2, "address");
             MSCSetSlotString(djuru, 3, buf);
@@ -1498,3 +1249,607 @@ void networkInterfaces(Djuru *djuru) {
     }
     uv_free_interface_addresses(info, count);
 }
+
+
+// ############################################################### Socket related functions #####################################################################
+
+
+
+typedef struct {
+    int ssl;
+    bool closed;
+    struct us_socket_context_t *context;
+    MSCHandle *openEvent;
+    MSCHandle *writableEvent;
+    MSCHandle *dataEvent;
+    MSCHandle *errorEvent;
+    MSCHandle *closeEvent;
+    MSCHandle *endEvent;
+    MSCHandle *serverNameEvent;
+} SocketContext;
+typedef struct {
+    int ssl;
+    bool closed;
+    struct us_socket_t *socket;
+    MSCHandle *ref;
+    MSCHandle *data;
+} SocketWrapper;
+
+
+SocketWrapper *newSocket(Djuru *djuru, int slot, struct us_socket_t *socket, int ssl) {
+    if (socket == NULL) {
+        MSCSetSlotNull(djuru, slot);
+        return NULL;
+    }
+    // check that this socket has not already been referenced
+    SocketWrapper **ext = (SocketWrapper **) us_socket_ext(ssl, socket);
+    if (*ext != NULL && (*ext)->ref != NULL) {
+        MSCSetSlotHandle(djuru, slot, (*ext)->ref);
+        return *ext;
+    }
+
+    MSCSetSlotHandle(djuru, slot, socketClass);
+    SocketWrapper *wrapper = MSCSetSlotNewExtern(djuru, slot, slot, sizeof(SocketWrapper));
+    wrapper->socket = socket;
+    wrapper->ssl = ssl;
+    wrapper->data = NULL;
+    wrapper->ref = NULL;
+    return wrapper;
+}
+
+
+SocketContext *getSocketContext(struct us_socket_t *s, int ssl) {
+    return *(SocketContext **) us_socket_context_ext(ssl, s->context);
+}
+
+SocketContext *getSocketContext1(struct us_socket_context_t *c, int ssl) {
+    return (SocketContext *) us_socket_context_ext(ssl, c);
+}
+
+void raiseSockerError(struct us_socket_t *s, SocketContext *context, int code, const char *source) {
+    if (context->errorEvent == NULL) {
+        return;
+    }
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 4);
+    MSCSetSlotHandle(djuru, 0, context->errorEvent);
+    newSocket(djuru, 1, s, context->ssl);
+    MSCSetSlotDouble(djuru, 2, code);
+    MSCSetSlotString(djuru, 3, source);
+    MSCCall(djuru, fnCall3);
+
+}
+
+
+struct us_socket_t *
+internalSocketContextOpenCallback(int ssl, struct us_socket_t *s, int is_client, char *ip, int ip_length) {
+    SocketContext *context = getSocketContext(s, ssl);
+    if (context->openEvent == NULL) {
+        return s;
+    }
+    SocketWrapper **ext = (SocketWrapper **) us_socket_ext(context->ssl, s);
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 4);
+    MSCSetSlotHandle(djuru, 0, context->openEvent);
+    SocketWrapper *wrapper = newSocket(djuru, 1, s, context->ssl);
+    (*ext) = wrapper;
+    // make a handle on the wrapper so that it be kept all along the socket lifetime
+    wrapper->ref = MSCGetSlotHandle(djuru, 1);
+    if (ip != NULL) {
+        MSCSetSlotBytes(djuru, 2, ip, (size_t) ip_length);
+    } else {
+        MSCSetSlotNull(djuru, 2);
+    }
+    MSCSetSlotBool(djuru, 3, is_client != 0);
+    MSCCall(djuru, fnCall3);
+    return s;
+}
+
+struct us_socket_t *
+socketContextOpenCallback(struct us_socket_t *s, int is_client, char *ip, int ip_length) {
+    return internalSocketContextOpenCallback(0, s, is_client, ip, ip_length);
+}
+
+struct us_socket_t *
+sslSocketContextOpenCallback(struct us_socket_t *s, int is_client, char *ip, int ip_length) {
+    return internalSocketContextOpenCallback(1, s, is_client, ip, ip_length);
+}
+
+struct us_socket_t *internalSocketContextCloseCallback(int ssl, struct us_socket_t *s, int code, void *reason) {
+    SocketContext *context = getSocketContext(s, ssl);
+    if (context->closeEvent == NULL) {
+        return s;
+    }
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 3);
+    MSCSetSlotHandle(djuru, 0, context->closeEvent);
+    newSocket(djuru, 1, s, context->ssl);
+    MSCSetSlotDouble(djuru, 2, code);
+    MSCCall(djuru, fnCall2);
+    return s;
+}
+
+struct us_socket_t *socketContextCloseCallback(struct us_socket_t *s, int code, void *reason) {
+    return internalSocketContextCloseCallback(0, s, code, reason);
+}
+
+struct us_socket_t *sslSocketContextCloseCallback(struct us_socket_t *s, int code, void *reason) {
+    return internalSocketContextCloseCallback(1, s, code, reason);
+}
+
+
+struct us_socket_t *socketContextConnectCallback(struct us_socket_t *s, int code) {
+    SocketContext *context = getSocketContext(s, 0);
+    raiseSockerError(s, context, code, "CONNECT");
+    return s;
+}
+
+struct us_socket_t *sslSocketContextConnectCallback(struct us_socket_t *s, int code) {
+    SocketContext *context = getSocketContext(s, 1);
+    raiseSockerError(s, context, code, "CONNECT");
+    return s;
+}
+
+struct us_socket_t *socketContextTimeoutCallback(struct us_socket_t *s) {
+    SocketContext *context = getSocketContext(s, 0);
+    raiseSockerError(s, context, -1, "TIMEOUT");
+    return s;
+}
+
+struct us_socket_t *sslSocketContextTimeoutCallback(struct us_socket_t *s) {
+    SocketContext *context = getSocketContext(s, 1);
+    raiseSockerError(s, context, -1, "TIMEOUT");
+    return s;
+}
+
+struct us_socket_t *socketContextLongTimeoutCallback(struct us_socket_t *s) {
+    SocketContext *context = getSocketContext(s, 0);
+    raiseSockerError(s, context, -2, "LTIMEOUT");
+    return s;
+}
+
+struct us_socket_t *sslSocketContextLongTimeoutCallback(struct us_socket_t *s) {
+    SocketContext *context = getSocketContext(s, 1);
+    raiseSockerError(s, context, -2, "LTIMEOUT");
+    return s;
+}
+
+struct us_socket_t *internalSocketContextWritableCallback(int ssl, struct us_socket_t *s) {
+    SocketContext *context = getSocketContext(s, ssl);
+    if (context->writableEvent == NULL) {
+        return s;
+    }
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 2);
+    MSCSetSlotHandle(djuru, 0, context->writableEvent);
+    newSocket(djuru, 1, s, context->ssl);
+    MSCCall(djuru, fnCall1);
+    return s;
+}
+
+struct us_socket_t *socketContextWritableCallback(struct us_socket_t *s) {
+    return internalSocketContextWritableCallback(0, s);
+}
+
+struct us_socket_t *sslSocketContextWritableCallback(struct us_socket_t *s) {
+    return internalSocketContextWritableCallback(1, s);
+}
+
+struct us_socket_t *internalSocketContextEndCallback(int ssl, struct us_socket_t *s) {
+    SocketContext *context = getSocketContext(s, ssl);
+    if (context->endEvent == NULL) {
+        return s;
+    }
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 2);
+    MSCSetSlotHandle(djuru, 0, context->endEvent);
+    newSocket(djuru, 1, s, context->ssl);
+    MSCCall(djuru, fnCall1);
+    return s;
+}
+
+struct us_socket_t *socketContextEndCallback(struct us_socket_t *s) {
+    return internalSocketContextEndCallback(0, s);
+}
+
+struct us_socket_t *sslSocketContextEndCallback(struct us_socket_t *s) {
+    return internalSocketContextEndCallback(0, s);
+}
+
+struct us_socket_t *internalSocketContextDataCallback(int ssl, struct us_socket_t *s, char *bytes, int size) {
+    SocketContext *context = getSocketContext(s, ssl);
+    if (context->dataEvent == NULL) {
+        return s;
+    }
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 3);
+    MSCSetSlotHandle(djuru, 0, context->dataEvent);
+    newSocket(djuru, 1, s, context->ssl);
+    MSCSetSlotBytes(djuru, 2, bytes, (size_t) size);
+    MSCCall(djuru, fnCall2);
+    return s;
+}
+
+struct us_socket_t *socketContextDataCallback(struct us_socket_t *s, char *bytes, int size) {
+    return internalSocketContextDataCallback(0, s, bytes, size);
+}
+
+struct us_socket_t *sslSocketContextDataCallback(struct us_socket_t *s, char *bytes, int size) {
+    return internalSocketContextDataCallback(1, s, bytes, size);
+}
+
+void internalSocketContextServerNameCallback(int ssl, struct us_socket_context_t *c, const char *bytes) {
+    SocketContext *context = getSocketContext1(c, ssl);
+    if (context->serverNameEvent == NULL) {
+        return;
+    }
+    Djuru *djuru = getCurrentThread();
+    MSCEnsureSlots(djuru, 2);
+    MSCSetSlotHandle(djuru, 0, context->serverNameEvent);
+    MSCSetSlotString(djuru, 1, bytes);
+    MSCCall(djuru, fnCall1);
+}
+
+void socketContextServerNameCallback(struct us_socket_context_t *c, const char *bytes) {
+    return internalSocketContextServerNameCallback(0, c, bytes);
+}
+
+void sslSocketContextServerNameCallback(struct us_socket_context_t *c, const char *bytes) {
+    return internalSocketContextServerNameCallback(1, c, bytes);
+}
+
+void socketContextInit(Djuru *djuru) {
+    int slotCount = MSCGetSlotCount(djuru);
+    MSCSetSlotHandle(djuru, 0, socketContextClass);
+    SocketContext *context = (SocketContext *) MSCSetSlotNewExtern(djuru, 0, 0, sizeof(SocketContext));
+    context->ssl = (int) MSCGetSlotDouble(djuru, 1);
+    struct us_loop_t *loop = uws_get_loop_with_native(getLoop());
+    struct us_socket_context_t *sContext = msc_socket_create(context->ssl, loop, sizeof(SocketContext *),
+                                                             extractSocketContextOptions(djuru, 2));
+    SocketContext **socketContextHolder = (SocketContext **) us_socket_context_ext(context->ssl, sContext);
+    *socketContextHolder = context;
+
+    context->context = sContext;
+    context->openEvent = NULL;
+    context->dataEvent = NULL;
+    context->errorEvent = NULL;
+    context->writableEvent = NULL;
+    context->closeEvent = NULL;
+    context->endEvent = NULL;
+    context->serverNameEvent = NULL;
+    context->closed = false;
+    if (MSCGetSlotType(djuru, 2) != MSC_TYPE_MAP) {
+        return;
+    }
+
+    MSCEnsureSlots(djuru, 4);
+    MSCSetSlotString(djuru, 3, "open");
+    MSCGetMapValue(djuru, 2, 3, 3);
+    if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+        context->openEvent = MSCGetSlotHandle(djuru, 3);
+    }
+
+    MSCSetSlotString(djuru, 3, "data");
+    MSCGetMapValue(djuru, 2, 3, 3);
+    if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+        context->dataEvent = MSCGetSlotHandle(djuru, 3);
+    }
+    MSCSetSlotString(djuru, 3, "writable");
+    MSCGetMapValue(djuru, 2, 3, 3);
+    if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+        context->writableEvent = MSCGetSlotHandle(djuru, 3);
+    }
+    MSCSetSlotString(djuru, 3, "error");
+    MSCGetMapValue(djuru, 2, 3, 3);
+    if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+        context->errorEvent = MSCGetSlotHandle(djuru, 3);
+    }
+    MSCSetSlotString(djuru, 3, "close");
+    MSCGetMapValue(djuru, 2, 3, 3);
+    if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+        context->closeEvent = MSCGetSlotHandle(djuru, 3);
+    }
+    MSCSetSlotString(djuru, 3, "end");
+    MSCGetMapValue(djuru, 2, 3, 3);
+    if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+        context->endEvent = MSCGetSlotHandle(djuru, 3);
+    }
+
+    MSCSetSlotString(djuru, 3, "serverName");
+    MSCGetMapValue(djuru, 2, 3, 3);
+    if (MSCGetSlotType(djuru, 3) != MSC_TYPE_NULL) {
+        context->serverNameEvent = MSCGetSlotHandle(djuru, 3);
+    }
+
+    us_socket_context_on_open(context->ssl, context->context,
+                              context->ssl ? sslSocketContextOpenCallback : socketContextOpenCallback);
+    us_socket_context_on_close(context->ssl, context->context,
+                               context->ssl ? sslSocketContextCloseCallback : socketContextCloseCallback);
+    us_socket_context_on_connect_error(context->ssl, context->context,
+                                       context->ssl ? sslSocketContextConnectCallback : socketContextConnectCallback);
+    us_socket_context_on_data(context->ssl, context->context,
+                              context->ssl ? sslSocketContextDataCallback : socketContextDataCallback);
+    us_socket_context_on_writable(context->ssl, context->context,
+                                  context->ssl ? sslSocketContextWritableCallback : socketContextWritableCallback);
+    us_socket_context_on_timeout(context->ssl, context->context,
+                                 context->ssl ? sslSocketContextTimeoutCallback : socketContextTimeoutCallback);
+    us_socket_context_on_long_timeout(context->ssl, context->context, context->ssl ? sslSocketContextLongTimeoutCallback
+                                                                                   : socketContextLongTimeoutCallback);
+    us_socket_context_on_server_name(context->ssl, context->context, context->ssl ? sslSocketContextServerNameCallback
+                                                                                  : socketContextServerNameCallback);
+    us_socket_context_on_end(context->ssl, context->context,
+                             context->ssl ? sslSocketContextEndCallback : socketContextEndCallback);
+    MSCEnsureSlots(djuru, slotCount);
+}
+
+void socketContextSetOpenEvent(Djuru *djuru) {
+    SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
+    if (context->openEvent != NULL) {
+        // release previous handle
+        MSCReleaseHandle(djuru, context->openEvent);
+    }
+    context->openEvent = MSCGetSlotHandle(djuru, 1);
+}
+
+void socketContextSetCloseEvent(Djuru *djuru) {
+    SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
+    if (context->closeEvent != NULL) {
+        // release previous handle
+        MSCReleaseHandle(djuru, context->closeEvent);
+    }
+    context->closeEvent = MSCGetSlotHandle(djuru, 1);
+}
+
+void socketContextSetDataEvent(Djuru *djuru) {
+    SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
+    if (context->dataEvent != NULL) {
+        // release previous handle
+        MSCReleaseHandle(djuru, context->dataEvent);
+    }
+    context->dataEvent = MSCGetSlotHandle(djuru, 1);
+}
+
+void socketContextSetEndEvent(Djuru *djuru) {
+    SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
+    if (context->endEvent != NULL) {
+        // release previous handle
+        MSCReleaseHandle(djuru, context->endEvent);
+    }
+    context->endEvent = MSCGetSlotHandle(djuru, 1);
+}
+
+void socketContextSetWritableEvent(Djuru *djuru) {
+    SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
+    if (context->writableEvent != NULL) {
+        // release previous handle
+        MSCReleaseHandle(djuru, context->writableEvent);
+    }
+    context->writableEvent = MSCGetSlotHandle(djuru, 1);
+}
+
+void socketContextSetErrorEvent(Djuru *djuru) {
+    SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
+    if (context->errorEvent != NULL) {
+        // release previous handle
+        MSCReleaseHandle(djuru, context->errorEvent);
+    }
+    context->errorEvent = MSCGetSlotHandle(djuru, 1);
+}
+
+void socketContextSetServerNameEvent(Djuru *djuru) {
+    SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
+    if (context->serverNameEvent != NULL) {
+        // release previous handle
+        MSCReleaseHandle(djuru, context->serverNameEvent);
+    }
+    context->serverNameEvent = MSCGetSlotHandle(djuru, 1);
+}
+
+void socketContextDestroy(void *handle) {
+    SocketContext *context = (SocketContext *) handle;
+    if (context == NULL) {
+        return;
+    }
+
+    if (context->context) {
+        if (!context->closed) {
+            us_socket_context_close(context->ssl, context->context);
+        }
+        us_socket_context_free(context->ssl, context->context);
+    }
+    Djuru *djuru = getCurrentThread();
+    if (context->openEvent != NULL) {
+        MSCReleaseHandle(djuru, context->openEvent);
+    }
+    if (context->writableEvent != NULL) {
+        MSCReleaseHandle(djuru, context->writableEvent);
+    }
+    if (context->dataEvent != NULL) {
+        MSCReleaseHandle(djuru, context->dataEvent);
+    }
+    if (context->errorEvent != NULL) {
+        MSCReleaseHandle(djuru, context->errorEvent);
+    }
+    if (context->closeEvent != NULL) {
+        MSCReleaseHandle(djuru, context->closeEvent);
+    }
+    if (context->endEvent != NULL) {
+        MSCReleaseHandle(djuru, context->endEvent);
+    }
+    if (context->serverNameEvent != NULL) {
+        MSCReleaseHandle(djuru, context->serverNameEvent);
+    }
+}
+
+void socketDestroy(void *handle) {
+    SocketWrapper *wrapper = (SocketWrapper *) handle;
+    if (wrapper->data != NULL) {
+        MSCReleaseHandle(getCurrentThread(), wrapper->data);
+        wrapper->data = NULL;
+    }
+    if (wrapper->ref != NULL) {
+        MSCReleaseHandle(getCurrentThread(), wrapper->ref);
+        wrapper->ref = NULL;
+    }
+    if (!wrapper->closed) {
+        us_socket_close(wrapper->ssl, wrapper->socket, 0, NULL);
+    }
+    us_socket_shutdown(wrapper->ssl, wrapper->socket);
+}
+
+
+void socketContextListen(Djuru *djuru) {
+    SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
+    const char *ip = MSCGetSlotString(djuru, 1);
+    int port = (int) MSCGetSlotDouble(djuru, 2);
+    int options = (int) MSCGetSlotDouble(djuru, 3);
+    struct us_listen_socket_t *res = msc_socket_listen(context->ssl, context->context, ip, port, options,
+                                                       sizeof(SocketWrapper *));
+    newSocket(djuru, 0, (struct us_socket_t *) res, context->ssl);
+}
+
+void socketContextListenUnix(Djuru *djuru) {
+    SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
+    const char *ip = MSCGetSlotString(djuru, 1);
+    // int port = (int) MSCGetSlotDouble(djuru, 2);
+    int options = (int) MSCGetSlotDouble(djuru, 2);
+    struct us_listen_socket_t *res = msc_socket_listen_unix(context->ssl, context->context, ip, options,
+                                                            sizeof(SocketWrapper *));
+    newSocket(djuru, 0, (struct us_socket_t *) res, context->ssl);
+}
+
+
+void socketContextConnect(Djuru *djuru) {
+    SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
+    const char *ip = MSCGetSlotString(djuru, 1);
+    int port = (int) MSCGetSlotDouble(djuru, 2);
+    const char *source = MSCGetSlotType(djuru, 3) != MSC_TYPE_STRING ? NULL : MSCGetSlotString(djuru, 3);
+    int options = (int) MSCGetSlotDouble(djuru, 4);
+    struct us_socket_t *res = msc_socket_connect(context->ssl, context->context, ip, port, source, options,
+                                                 sizeof(SocketWrapper *));
+
+    newSocket(djuru, 0, res, context->ssl);
+}
+
+void socketContextClose(Djuru *djuru) {
+    SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
+    msc_socket_context_close(context->ssl, context->context);
+    context->closed = true;
+
+}
+
+void socketClose(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    if (wrapper->data != NULL) {
+        MSCReleaseHandle(getCurrentThread(), wrapper->data);
+        wrapper->data = NULL;
+    }
+    if(wrapper->ref != NULL) {
+        MSCReleaseHandle(djuru, wrapper->ref);
+        wrapper->ref = NULL;
+    }
+    us_socket_close(wrapper->ssl, wrapper->socket, 0, NULL);
+    wrapper->closed = true;
+}
+
+void parseRemoteAddress(char *binary, int size, char *dest, int *length) {
+
+    *length = 0;
+
+    if (!size) {
+        return;
+    }
+
+    unsigned char *b = (unsigned char *) binary;
+
+    if (size == 4) {
+        *length = snprintf(dest, 64, "%u.%u.%u.%u", b[0], b[1], b[2], b[3]);
+    } else {
+        *length = snprintf(dest, 64, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+                           b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11],
+                           b[12], b[13], b[14], b[15]);
+    }
+}
+
+void socketRemoteAddress(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    char binary[16];
+    char buff[64];
+    int blength;
+    int length = 0;
+    us_socket_remote_address(wrapper->ssl, wrapper->socket, binary, &blength);
+    parseRemoteAddress(binary, blength, buff, &length);
+    if (length == 0) {
+        MSCSetSlotNull(djuru, 0);
+    } else {
+        MSCSetSlotBytes(djuru, 0, buff, (size_t) length);
+    }
+}
+
+void socketFlush(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    us_socket_flush(wrapper->ssl, wrapper->socket);
+    MSCSetSlotNull(djuru, 0);
+}
+
+void socketRemotePort(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotDouble(djuru, 0, us_socket_remote_port(wrapper->ssl, wrapper->socket));
+}
+
+void socketLocalPort(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotDouble(djuru, 0, us_socket_local_port(wrapper->ssl, wrapper->socket));
+}
+
+void socketIsEstablished(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotBool(djuru, 0, us_socket_is_established(wrapper->ssl, wrapper->socket) != 0);
+}
+
+void socketIsClosed(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotBool(djuru, 0, us_socket_is_closed(wrapper->ssl, wrapper->socket) != 0);
+}
+
+void socketIsShutdown(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    MSCSetSlotBool(djuru, 0, us_socket_is_shut_down(wrapper->ssl, wrapper->socket) != 0);
+}
+
+
+void socketWrite(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    int length;
+    const char *bytes = MSCGetSlotBytes(djuru, 1, &length);
+    MSCSetSlotDouble(djuru, 0, us_socket_write(wrapper->ssl, wrapper->socket, bytes, length, 1));
+}
+
+void socketTimeout(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    unsigned int seconds = (unsigned int) MSCGetSlotDouble(djuru, 1);
+    us_socket_timeout(wrapper->ssl, wrapper->socket, seconds);
+    MSCSetSlotNull(djuru, 0);
+}
+
+
+void socketSetData(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    if (wrapper->data != NULL) {
+        // free the old handle
+        MSCReleaseHandle(djuru, wrapper->data);
+    }
+    wrapper->data = MSCGetSlotHandle(djuru, 1);
+    MSCSetSlotNull(djuru, 0);
+}
+
+void socketGetData(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    if (wrapper->data == NULL) {
+        MSCSetSlotNull(djuru, 0);
+    } else {
+        MSCSetSlotHandle(djuru, 0, wrapper->data);
+    }
+
+}
+

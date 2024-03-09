@@ -1,0 +1,18 @@
+kabo "net" nani UVSocket
+
+nin socket
+socket = UVSocket.kura({
+    connect: Tii.kura {
+        A.yira("Connected to server")
+        socket.write("Hello Server")
+    },
+    error: Tii.kura { code, source =>
+        A.yira("UVSocket error from $source: $code")
+    },
+    data: Tii.kura {data =>
+        A.yira("Data from server: $data")
+        socket.close()
+    }
+})
+socket.connect("127.0.0.1", 5000)
+socket.read()

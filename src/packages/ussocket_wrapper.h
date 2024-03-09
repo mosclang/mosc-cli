@@ -6,7 +6,7 @@
 #define MOSCC_USSOCKET_WRAPPER_H
 
 #include "msc_ussocket.h"
-
+/*
 extern "C" {
 void msc_socket_on_open(int ssl, struct us_socket_context_t *context,
                         struct us_socket_t *(*handler)(struct us_socket_t *, int, char *, int, void *),
@@ -64,3 +64,4 @@ msc_socket_context_listent(int ssl, struct us_socket_context_t *context, const c
 }
 };
 #endif //MOSCC_USSOCKET_WRAPPER_H
+*/

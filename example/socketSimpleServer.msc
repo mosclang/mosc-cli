@@ -1,29 +1,25 @@
-kabo "net" nani Socket, Util
+kabo "net" nani SocketContext, Socket, Util
 
-nin socket
-socket = Socket.kura({
-    accept: Tii.kura {
-        A.yira("New CLient connection")
-        nin client
-        client = Socket.kura({
-            data: Tii.kura { data =>
-                nii !data segin
-                A.yira("Data from client:: $data")
-                client.write("Hello Client")
-            }
-        })
-        nii (socket.accept(client) == 0) {
-            client.read()
-        }
+nin context = SocketContext.kura(0, {
+    open: Tii.kura { client, ip, isClient =>
+        A.yira(":::New CLient connection::$ip:: ${client.remoteAddress}")
     },
     error: Tii.kura { code, source =>
-        A.yira("Socket error from $source: $code")
+        A.yira("UVSocket error from $source: $code")
+    },
+    data: Tii.kura { client, data =>
+        client.write("Hello from server to client")
+    },
+    end: Tii.kura {client =>
+        client.close()
     }
 })
-socket.bind("127.0.0.1", 5000)
-nii(socket.listen(128) == 0) {
+
+nii(context.listen("127.0.0.1", 5000, 1)) {
     A.yira("Listening for connection on 5000")
     A.yira("IP for oms.orangemali.com is ${Util.resolveName("oms.orangemali.com")}")
 
     # Util.resolveName("oms.orangemali.com", gansan) { dns => A.yira("IP for oms.orangemali.com is $dns")}
+} note {
+    A.yira("Failed to listen")
 }

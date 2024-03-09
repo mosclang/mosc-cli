@@ -1,6 +1,416 @@
-==45062== Memcheck, a memory error detector
-==45062== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
-==45062== Using Valgrind-3.23.0.GIT-lbmacos and LibVEX; rerun with -h for copyright info
-==45062== Command: ./bin/moscc_d example/helloWorl.msc
-==45062== Parent PID: 1874
-==45062== 
+==17353== Memcheck, a memory error detector
+==17353== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==17353== Using Valgrind-3.23.0.GIT-lbmacos and LibVEX; rerun with -h for copyright info
+==17353== Command: ./bin/moscc_d example/socketSimpleClient.msc
+==17353== Parent PID: 98607
+==17353== 
+==17353== Syscall param map_with_linking_np(link_info) points to uninitialised byte(s)
+==17353==    at 0x1003F7E32: __map_with_linking_np (in /usr/lib/dyld)
+==17353==    by 0x1003A7E4D: dyld4::setUpPageInLinkingRegions(dyld4::RuntimeState&, dyld4::Loader const*, unsigned long, unsigned short, unsigned short, bool, dyld3::Array<dyld4::PageInLinkingRange> const&, dyld3::Array<void const*> const&) (in /usr/lib/dyld)
+==17353==    by 0x1003A7820: invocation function for block in dyld4::Loader::setUpPageInLinking(Diagnostics&, dyld4::RuntimeState&, unsigned long, unsigned long long, dyld3::Array<void const*> const&) const (in /usr/lib/dyld)
+==17353==    by 0x1003A75A4: dyld4::Loader::setUpPageInLinking(Diagnostics&, dyld4::RuntimeState&, unsigned long, unsigned long long, dyld3::Array<void const*> const&) const (in /usr/lib/dyld)
+==17353==    by 0x1003A7FCA: dyld4::Loader::applyFixupsGeneric(Diagnostics&, dyld4::RuntimeState&, unsigned long long, dyld3::Array<void const*> const&, dyld3::Array<void const*> const&, bool, dyld3::Array<dyld4::Loader::MissingFlatLazySymbol> const&) const (in /usr/lib/dyld)
+==17353==    by 0x1003AD268: dyld4::JustInTimeLoader::applyFixups(Diagnostics&, dyld4::RuntimeState&, dyld4::DyldCacheDataConstLazyScopedWriter&, bool) const (in /usr/lib/dyld)
+==17353==    by 0x1003932A4: dyld4::prepare(dyld4::APIs&, dyld3::MachOAnalyzer const*) (in /usr/lib/dyld)
+==17353==    by 0x1003923BC: (below main) (in /usr/lib/dyld)
+==17353==  Address 0x104c88cb0 is on thread 1's stack
+==17353==  in frame #1, created by dyld4::setUpPageInLinkingRegions(dyld4::RuntimeState&, dyld4::Loader const*, unsigned long, unsigned short, unsigned short, bool, dyld3::Array<dyld4::PageInLinkingRange> const&, dyld3::Array<void const*> const&) (???:)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x1003A7B25: dyld4::setUpPageInLinkingRegions(dyld4::RuntimeState&, dyld4::Loader const*, unsigned long, unsigned short, unsigned short, bool, dyld3::Array<dyld4::PageInLinkingRange> const&, dyld3::Array<void const*> const&) (in /usr/lib/dyld)
+==17353== 
+==17353== Invalid read of size 16
+==17353==    at 0x7FF8038AE915: ???
+==17353==    by 0x7FF8035C5AAC: _xpc_dictionary_look_up_table (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C597E: _xpc_dictionary_look_up (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C673C: _xpc_dictionary_look_up_fast (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C94EC: xpc_dictionary_get_uint64 (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C6CD8: _xpc_interface_routine (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C8B97: bootstrap_look_up3 (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C89D1: bootstrap_look_up2 (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF80695997A: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8069598F6: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==  Address 0x100947a92 is 34 bytes inside a block of size 48 alloc'd
+==17353==    at 0x1004F7266: calloc (in /usr/local/Cellar/valgrind/HEAD-93191c1/libexec/valgrind/vgpreload_memcheck-amd64-darwin.so)
+==17353==    by 0x7FF8035DAF88: _xpc_alloc (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C2F3E: _xpc_dictionary_insert (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035D7F6B: _xpc_dictionary_deserialize_apply (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035D7F0B: _xpc_dictionary_apply_wire_f (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C82E5: _xpc_dictionary_create_from_received_message (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C81B6: _xpc_graph_unpack_impl (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C7E57: xpc_receive_mach_msg (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035E6869: _xpc_pipe_routine (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C6C00: _xpc_interface_routine (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C8B97: bootstrap_look_up3 (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C89D1: bootstrap_look_up2 (in /usr/lib/system/libxpc.dylib)
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF8035C6D0F: _xpc_interface_routine (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C8B97: bootstrap_look_up3 (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C89D1: bootstrap_look_up2 (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF80695997A: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8069598F6: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806957C21: notify_monitor_file (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806953061: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF803735011: notify_register_tz (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803753D33: gmt_init (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803880945: ???
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF8035C6D16: _xpc_interface_routine (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C8B97: bootstrap_look_up3 (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C89D1: bootstrap_look_up2 (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF80695997A: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8069598F6: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806957C21: notify_monitor_file (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806953061: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF803735011: notify_register_tz (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803753D33: gmt_init (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803880945: ???
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF8035C6D1B: _xpc_interface_routine (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C8B97: bootstrap_look_up3 (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C89D1: bootstrap_look_up2 (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF80695997A: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8069598F6: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806957C21: notify_monitor_file (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806953061: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF803735011: notify_register_tz (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803753D33: gmt_init (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803880945: ???
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF8035C6D1F: _xpc_interface_routine (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C8B97: bootstrap_look_up3 (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF8035C89D1: bootstrap_look_up2 (in /usr/lib/system/libxpc.dylib)
+==17353==    by 0x7FF80695997A: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8069598F6: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806957C21: notify_monitor_file (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806953061: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF803735011: notify_register_tz (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803753D33: gmt_init (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803880945: ???
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x7FF803753CD7: gmt_init (in /usr/lib/system/libsystem_c.dylib)
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF806959529: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806957C21: notify_monitor_file (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806953061: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF803735011: notify_register_tz (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803753D33: gmt_init (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803880945: ???
+==17353==    by 0x7FF8038AEF85: ???
+==17353==    by 0x7FF8038808F3: ???
+==17353==    by 0x7FF803753C7C: gmtsub (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x1000864BE: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000863AE: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000862A4: ??? (in ./bin/moscc_d)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x7FF80695926F: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF806959883: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806957C21: notify_monitor_file (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806953061: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF803735011: notify_register_tz (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803753D33: gmt_init (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803880945: ???
+==17353==    by 0x7FF8038AEF85: ???
+==17353==    by 0x7FF8038808F3: ???
+==17353==    by 0x7FF803753C7C: gmtsub (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x1000864BE: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000863AE: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000862A4: ??? (in ./bin/moscc_d)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x7FF80695926F: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF8069597D4: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806957C21: notify_monitor_file (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806953061: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF803735011: notify_register_tz (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803753D33: gmt_init (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803880945: ???
+==17353==    by 0x7FF8038AEF85: ???
+==17353==    by 0x7FF8038808F3: ???
+==17353==    by 0x7FF803753C7C: gmtsub (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x1000864BE: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000863AE: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000862A4: ??? (in ./bin/moscc_d)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x7FF80695926F: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF8069597E1: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806957C21: notify_monitor_file (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF806953061: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF803735011: notify_register_tz (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803753D33: gmt_init (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803880945: ???
+==17353==    by 0x7FF8038AEF85: ???
+==17353==    by 0x7FF8038808F3: ???
+==17353==    by 0x7FF803753C7C: gmtsub (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x1000864BE: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000863AE: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000862A4: ??? (in ./bin/moscc_d)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x7FF80695926F: _notify_fork_child (in /usr/lib/system/libsystem_notify.dylib)
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF806953280: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF803735011: notify_register_tz (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803753D33: gmt_init (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF803880945: ???
+==17353==    by 0x7FF8038AEF85: ???
+==17353==    by 0x7FF8038808F3: ???
+==17353==    by 0x7FF803753C7C: gmtsub (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x1000864BE: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000863AE: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000862A4: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000850F0: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000842C7: ??? (in ./bin/moscc_d)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x7FF806952D46: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF803847DD0: ???
+==17353==    by 0x10005E11F: ??? (in ./bin/moscc_d)
+==17353==    by 0x10003ECCB: ??? (in ./bin/moscc_d)
+==17353==    by 0x10003E499: ??? (in ./bin/moscc_d)
+==17353==    by 0x7FF803880945: ???
+==17353==    by 0x7FF8038AEF85: ???
+==17353==    by 0x7FF8038808F3: ???
+==17353==    by 0x10005E05C: ??? (in ./bin/moscc_d)
+==17353==    by 0x10003E42D: ??? (in ./bin/moscc_d)
+==17353==    by 0x10004D295: ??? (in ./bin/moscc_d)
+==17353==    by 0x100006E55: ??? (in ./bin/moscc_d)
+==17353==    by 0x100031B11: ??? (in ./bin/moscc_d)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x1000E3824: ??? (in ./bin/moscc_d)
+==17353== 
+==17353== Invalid read of size 1
+==17353==    at 0x10040B099: __chkstk_darwin_probe (in /usr/lib/dyld)
+==17353==    by 0x100B6BE08: dlfcn_load (in /usr/local/Cellar/openssl@3/3.2.0_1/lib/libcrypto.3.dylib)
+==17353==    by 0x100B6C6F0: DSO_load (in /usr/local/Cellar/openssl@3/3.2.0_1/lib/libcrypto.3.dylib)
+==17353==    by 0x100B6CBAB: DSO_dsobyaddr (in /usr/local/Cellar/openssl@3/3.2.0_1/lib/libcrypto.3.dylib)
+==17353==    by 0x100C1B450: ossl_init_load_crypto_nodelete_ossl_ (in /usr/local/Cellar/openssl@3/3.2.0_1/lib/libcrypto.3.dylib)
+==17353==    by 0x7FF803880945: ???
+==17353==    by 0x7FF8038AEF85: ???
+==17353==    by 0x7FF8038808F3: ???
+==17353==    by 0x100C2AC05: CRYPTO_THREAD_run_once (in /usr/local/Cellar/openssl@3/3.2.0_1/lib/libcrypto.3.dylib)
+==17353==    by 0x100C1B04A: OPENSSL_init_crypto (in /usr/local/Cellar/openssl@3/3.2.0_1/lib/libcrypto.3.dylib)
+==17353==    by 0x1005D8060: OPENSSL_init_ssl (in /usr/local/Cellar/openssl@3/3.2.0_1/lib/libssl.3.dylib)
+==17353==    by 0x10006C6C9: ??? (in ./bin/moscc_d)
+==17353==  Address 0x104c821b0 is on thread 1's stack
+==17353==  368 bytes below stack pointer
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF806953280: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF8038B9C0B: __si_module_static_ds_block_invoke (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8038B9BA2: si_module_static_ds (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B95F8: si_module_with_name (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B9A80: si_module_config_modules_for_category (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B96FD: __si_module_static_search_block_invoke (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8038B9667: si_module_static_search (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B95F8: si_module_with_name (in /usr/lib/system/libsystem_info.dylib)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x7FF806952D46: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF806953280: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF8038B9C1B: __si_module_static_ds_block_invoke (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8038B9BA2: si_module_static_ds (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B95F8: si_module_with_name (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B9A80: si_module_config_modules_for_category (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B96FD: __si_module_static_search_block_invoke (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8038B9667: si_module_static_search (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B95F8: si_module_with_name (in /usr/lib/system/libsystem_info.dylib)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x7FF806952D46: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF806953280: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF8038B9C2B: __si_module_static_ds_block_invoke (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8038B9BA2: si_module_static_ds (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B95F8: si_module_with_name (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B9A80: si_module_config_modules_for_category (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B96FD: __si_module_static_search_block_invoke (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8038B9667: si_module_static_search (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B95F8: si_module_with_name (in /usr/lib/system/libsystem_info.dylib)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x7FF806952D46: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF806953280: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF8038B9C3E: __si_module_static_ds_block_invoke (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8038B9BA2: si_module_static_ds (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B95F8: si_module_with_name (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B9A80: si_module_config_modules_for_category (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B96FD: __si_module_static_search_block_invoke (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8036E3032: _dispatch_client_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8036E4266: _dispatch_once_callout (in /usr/lib/system/libdispatch.dylib)
+==17353==    by 0x7FF8038B9667: si_module_static_search (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038B95F8: si_module_with_name (in /usr/lib/system/libsystem_info.dylib)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x7FF806952D46: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF806953280: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF8038C25C3: si_inet_config (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C19F6: _mdns_search_ex (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C46DD: mdns_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C44B4: search_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038BD1E3: si_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038BCCAE: getaddrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x1000685A9: ??? (in ./bin/moscc_d)
+==17353==    by 0x100069162: ??? (in ./bin/moscc_d)
+==17353==    by 0x10006D223: ??? (in ./bin/moscc_d)
+==17353==    by 0x100069146: ??? (in ./bin/moscc_d)
+==17353==    by 0x10000EEE1: ??? (in ./bin/moscc_d)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x7FF806952D46: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353== 
+==17353== Conditional jump or move depends on uninitialised value(s)
+==17353==    at 0x7FF806953280: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353==    by 0x7FF8038BF5A2: _fsi_get_validation (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C5A42: _fsi_get_host (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C7267: _gai_simple (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C44B4: search_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038BD1E3: si_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038BCCAE: getaddrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x1000685A9: ??? (in ./bin/moscc_d)
+==17353==    by 0x100069162: ??? (in ./bin/moscc_d)
+==17353==    by 0x10006D223: ??? (in ./bin/moscc_d)
+==17353==    by 0x100069146: ??? (in ./bin/moscc_d)
+==17353==    by 0x10000EEE1: ??? (in ./bin/moscc_d)
+==17353==  Uninitialised value was created by a stack allocation
+==17353==    at 0x7FF806952D46: notify_register_check (in /usr/lib/system/libsystem_notify.dylib)
+==17353== 
+==17353== Invalid read of size 32
+==17353==    at 0x7FF8038AF29D: ???
+==17353==    by 0x7FF80374C679: fgets (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF8038BF6D2: _fsi_get_line (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C5A4A: _fsi_get_host (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C7267: _gai_simple (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C44B4: search_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038BD1E3: si_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038BCCAE: getaddrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x1000685A9: ??? (in ./bin/moscc_d)
+==17353==    by 0x100069162: ??? (in ./bin/moscc_d)
+==17353==    by 0x10006D223: ??? (in ./bin/moscc_d)
+==17353==    by 0x100069146: ??? (in ./bin/moscc_d)
+==17353==  Address 0x101592200 is 32 bytes before a block of size 4,096 in arena "client"
+==17353== 
+==17353== Invalid read of size 32
+==17353==    at 0x7FF8038AF29D: ???
+==17353==    by 0x7FF80374C679: fgets (in /usr/lib/system/libsystem_c.dylib)
+==17353==    by 0x7FF8038BF6D2: _fsi_get_line (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C5CCA: _fsi_get_host (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C7267: _gai_simple (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C44B4: search_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038BD1E3: si_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038BCCAE: getaddrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x1000685A9: ??? (in ./bin/moscc_d)
+==17353==    by 0x100069162: ??? (in ./bin/moscc_d)
+==17353==    by 0x10006D223: ??? (in ./bin/moscc_d)
+==17353==    by 0x100069146: ??? (in ./bin/moscc_d)
+==17353==  Address 0x101592200 is 32 bytes before a block of size 4,096 in arena "client"
+==17353== 
+==17353== Invalid read of size 16
+==17353==    at 0x7FF8038AE915: ???
+==17353==    by 0x7FF8038C5BA9: _fsi_get_host (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C7267: _gai_simple (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C44B4: search_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038BD1E3: si_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038BCCAE: getaddrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x1000685A9: ??? (in ./bin/moscc_d)
+==17353==    by 0x100069162: ??? (in ./bin/moscc_d)
+==17353==    by 0x10006D223: ??? (in ./bin/moscc_d)
+==17353==    by 0x100069146: ??? (in ./bin/moscc_d)
+==17353==    by 0x10000EEE1: ??? (in ./bin/moscc_d)
+==17353==    by 0x10000C95B: ??? (in ./bin/moscc_d)
+==17353==  Address 0x10159350a is 10 bytes inside a block of size 20 alloc'd
+==17353==    at 0x1004F2FD5: malloc (in /usr/local/Cellar/valgrind/HEAD-93191c1/libexec/valgrind/vgpreload_memcheck-amd64-darwin.so)
+==17353==    by 0x7FF8038BF70E: _fsi_get_line (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C5CCA: _fsi_get_host (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C7267: _gai_simple (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038C44B4: search_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038BD1E3: si_addrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x7FF8038BCCAE: getaddrinfo (in /usr/lib/system/libsystem_info.dylib)
+==17353==    by 0x1000685A9: ??? (in ./bin/moscc_d)
+==17353==    by 0x100069162: ??? (in ./bin/moscc_d)
+==17353==    by 0x10006D223: ??? (in ./bin/moscc_d)
+==17353==    by 0x100069146: ??? (in ./bin/moscc_d)
+==17353==    by 0x10000EEE1: ??? (in ./bin/moscc_d)
+==17353== 
+==17353== Invalid read of size 8
+==17353==    at 0x10000C71A: ??? (in ./bin/moscc_d)
+==17353==    by 0x10002B955: ??? (in ./bin/moscc_d)
+==17353==    by 0x100027F54: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000264D2: ??? (in ./bin/moscc_d)
+==17353==    by 0x10002B748: ??? (in ./bin/moscc_d)
+==17353==    by 0x100005E82: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000056BE: ??? (in ./bin/moscc_d)
+==17353==    by 0x100003468: ??? (in ./bin/moscc_d)
+==17353==    by 0x10039241E: (below main) (in /usr/lib/dyld)
+==17353==  Address 0x40 is not stack'd, malloc'd or (recently) free'd
+==17353== 
+==17353== 
+==17353== Process terminating with default action of signal 11 (SIGSEGV)
+==17353==  Access not within mapped region at address 0x40
+==17353==    at 0x10000C71A: ??? (in ./bin/moscc_d)
+==17353==    by 0x10002B955: ??? (in ./bin/moscc_d)
+==17353==    by 0x100027F54: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000264D2: ??? (in ./bin/moscc_d)
+==17353==    by 0x10002B748: ??? (in ./bin/moscc_d)
+==17353==    by 0x100005E82: ??? (in ./bin/moscc_d)
+==17353==    by 0x1000056BE: ??? (in ./bin/moscc_d)
+==17353==    by 0x100003468: ??? (in ./bin/moscc_d)
+==17353==    by 0x10039241E: (below main) (in /usr/lib/dyld)
+==17353==  If you believe this happened as a result of a stack
+==17353==  overflow in your program's main thread (unlikely but
+==17353==  possible), you can try to increase the size of the
+==17353==  main thread stack using the --main-stacksize= flag.
+==17353==  The main thread stack size used in this run was 8388608.
+==17353== 
+==17353== HEAP SUMMARY:
+==17353==     in use at exit: 3,686,974 bytes in 27,927 blocks
+==17353==   total heap usage: 75,986 allocs, 48,059 frees, 5,345,961 bytes allocated
+==17353== 
+==17353== LEAK SUMMARY:
+==17353==    definitely lost: 8,448 bytes in 137 blocks
+==17353==    indirectly lost: 0 bytes in 0 blocks
+==17353==      possibly lost: 1,871 bytes in 19 blocks
+==17353==    still reachable: 3,676,655 bytes in 27,771 blocks
+==17353==                       of which reachable via heuristic:
+==17353==                         newarray           : 56 bytes in 1 blocks
+==17353==         suppressed: 0 bytes in 0 blocks
+==17353== Rerun with --leak-check=full to see details of leaked memory
+==17353== 
+==17353== For lists of detected and suppressed errors, rerun with: -s
+==17353== ERROR SUMMARY: 30 errors from 23 contexts (suppressed: 1336 from 44)

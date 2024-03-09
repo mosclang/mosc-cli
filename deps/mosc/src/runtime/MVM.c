@@ -3,7 +3,6 @@
 //
 
 
-#include <Value.h>
 #include "MVM.h"
 #include "../builtin/Primitive.h"
 #include "debuger.h"
@@ -17,6 +16,7 @@
 
 #include "../meta/Kunfe.h"
 #include "../memory/Value.h"
+#include "../api/msc.h"
 
 #endif
 
@@ -286,7 +286,7 @@ void MSCFreeVM(MVM *vm) {
     // may try to use. Better to tell them about the bug early.
     ASSERT(vm->handles == NULL, "All handles have not been released.");
     DEALLOCATE(vm, vm->gc);
-
+    vm->config.reallocateFn(vm, 0, vm->config.userData);
 }
 
 void MSCCollectGarbage(MVM *vm) {
@@ -842,7 +842,7 @@ static MSCInterpretResult runInterpreter(register Djuru *djuru) {
 
 #else
 
-#define INTERPRET_LOOP                                                       \
+    #define INTERPRET_LOOP                                                       \
       loop:                                                                    \
         DEBUG_TRACE_INSTRUCTIONS();                                            \
         instruction = (Opcode)READ_BYTE()     ;                                  \

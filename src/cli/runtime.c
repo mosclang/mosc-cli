@@ -7,6 +7,7 @@
 #include <msc.h>
 #include <net.h>
 #include <MVM.h>
+#include <helpers/list.h>
 
 #include "io.h"
 #include "packages.h"
@@ -16,6 +17,10 @@
 #include "runtime.h"
 #include "resolver.h"
 #include "queue.h";
+#include "list.h";
+
+#define MICROTASK_QUEUE_SIZE 512
+#define SHUTDOWN_LISTENERS_SIZE 128
 
 // The single VM instance that the CLI uses.
 static MVM *vm;
@@ -29,6 +34,9 @@ static uv_loop_t *loop;
 static uv_async_t *microtaskAsync;
 static uv_mutex_t *microtaskMutex;
 static Queue *microtaskQueue;
+
+
+static MSCList *shutdownListeners;
 
 // TODO: This isn't currently used, but probably will be when package imports
 // are supported. If not then, then delete this.
@@ -281,6 +289,7 @@ void microtaskAsyncCb(uv_async_t *handle) {
     // uv_unref((uv_handle_t *) microtaskAsync);
     uv_mutex_unlock(microtaskMutex);
 }
+
 void enqueueMicrotask(MSCHandle *callback) {
     uv_mutex_lock(microtaskMutex);
     enqueItem(microtaskQueue, callback);
@@ -290,18 +299,25 @@ void enqueueMicrotask(MSCHandle *callback) {
     uv_async_send(microtaskAsync);
 }
 
-void* copyHandle(const void *item) {
-    return (MSCHandle*)item;
+void *copyHandle(const void *item) {
+    return (MSCHandle *) item;
 }
+
 void destroyHandle(const void *_) {
 
 }
+
+
 void clearMicroTask() {
     Djuru *djuru = getCurrentThread();
     while (!queueIsEmpty(microtaskQueue)) {
         MSCHandle *task = queueTake(microtaskQueue);
         MSCReleaseHandle(djuru, task);
     }
+}
+
+void registerForShutdown(ShutdownListener listener) {
+    pushInList(shutdownListeners, listener);
 }
 
 static void initVM() {
@@ -324,6 +340,7 @@ static void initVM() {
     uv_loop_init(loop);
     uws_loop_defer(uws_get_loop_with_native(loop), deferCb, NULL);
 }
+
 static void cleanMicroTask() {
     clearMicroTask();
     uv_mutex_destroy(microtaskMutex);
@@ -332,10 +349,17 @@ static void cleanMicroTask() {
     free(microtaskMutex);
     free(microtaskQueue);
 }
+
 static void freeVM() {
     ioShutdown();
     schedulerShutdown();
-    httpShutdown();
+    // httpShutdown();
+    for (int i = 0; i < shutdownListeners->size; i++) {
+        ShutdownListener listener = (ShutdownListener) getFromList(shutdownListeners, i);
+        if (listener != NULL) {
+            listener();
+        }
+    }
     cleanMicroTask();
     uv_loop_close(loop);
 
@@ -405,8 +429,9 @@ MSCInterpretResult runCLI() {
 
     // This cast is safe since we don't try to free the string later.
     rootDirectory = (char *) ".";
+    shutdownListeners = newList(SHUTDOWN_LISTENERS_SIZE);
     initVM();
-    microtaskQueue = initQueue(512, copyHandle, destroyHandle);
+    microtaskQueue = initQueue(MICROTASK_QUEUE_SIZE, copyHandle, destroyHandle);
     microtaskMutex = malloc(sizeof(uv_mutex_t));
     microtaskAsync = malloc(sizeof(uv_async_t));
     uv_mutex_init(microtaskMutex);
