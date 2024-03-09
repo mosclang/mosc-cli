@@ -10,6 +10,8 @@
 
 #if __APPLE__
 #include "TargetConditionals.h"
+#include "../../deps/mosc/src/memory/Value.h"
+
 #endif
 
 typedef struct {
@@ -271,7 +273,7 @@ void processExec(Djuru* djuru) {
         // should be stderr??? but no idea how to make tests work/pass with that
         fprintf(stdout, "Could not launch %s, reason: %s\n", cmd, uv_strerror(r));
         MSCSetSlotString(djuru, 0, "Could not spawn process.");
-        MSCReleaseHandle(djuru, data->djuru);
+        MSCReleaseHandle(djuru->vm, data->djuru);
         MSCAbortDjuru(djuru, 0);
     }
 }

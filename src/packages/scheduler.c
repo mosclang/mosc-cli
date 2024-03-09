@@ -13,6 +13,7 @@
 #include "scheduler.h"
 #include "msc.h"
 #include "runtime.h"
+#include "../../deps/mosc/src/memory/Value.h"
 
 // A handle to the "Scheduler" class object. Used to call static methods on it.
 static MSCHandle *schedulerClass;
@@ -51,7 +52,7 @@ void schedulerResume(MSCHandle *fiber, bool hasArgument) {
     MSCEnsureSlots(djuru, 2 + (hasArgument ? 1 : 0));
     MSCSetSlotHandle(djuru, 0, schedulerClass);
     MSCSetSlotHandle(djuru, 1, fiber);
-    MSCReleaseHandle(djuru, fiber);
+    MSCReleaseHandle(djuru->vm, fiber);
 
     // If we don't need to wait for an argument to be stored on the stack, resume
     // it now.
@@ -73,10 +74,10 @@ void schedulerShutdown() {
     if (schedulerClass == NULL) return;
 
     Djuru *djuru = getCurrentThread();
-    MSCReleaseHandle(djuru, schedulerClass);
-    MSCReleaseHandle(djuru, resume1);
-    MSCReleaseHandle(djuru, resume2);
-    MSCReleaseHandle(djuru, resumeError);
+    MSCReleaseHandle(djuru->vm, schedulerClass);
+    MSCReleaseHandle(djuru->vm, resume1);
+    MSCReleaseHandle(djuru->vm, resume2);
+    MSCReleaseHandle(djuru->vm, resumeError);
 }
 
 void scheduleNextTick(Djuru *djuru) {

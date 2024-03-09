@@ -20,8 +20,8 @@ nin context = SocketContext.kura(1, {
         #}
     },
     close: Tii.kura { socket =>
-        A.yira("Closed ${socket.data}")
         socket.close()
+        A.yira("Closed ${socket.data["resp"]}")
     },
     backPressing: tien,
     idleTime: 5

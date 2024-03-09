@@ -283,7 +283,7 @@ void microtaskAsyncCb(uv_async_t *handle) {
             fnCall0 = MSCMakeCallHandle(vm, "weele()");
         }
         MSCCall(djuru, fnCall0);
-        MSCReleaseHandle(djuru, task);
+        MSCReleaseHandle(getVM(), task);
     }
     // printf("Done Processing Async::: \n");
     // uv_unref((uv_handle_t *) microtaskAsync);
@@ -309,10 +309,10 @@ void destroyHandle(const void *_) {
 
 
 void clearMicroTask() {
-    Djuru *djuru = getCurrentThread();
+    MVM *vm = getVM();
     while (!queueIsEmpty(microtaskQueue)) {
         MSCHandle *task = queueTake(microtaskQueue);
-        MSCReleaseHandle(djuru, task);
+        MSCReleaseHandle(vm, task);
     }
 }
 
@@ -443,7 +443,7 @@ MSCInterpretResult runCLI() {
         uv_run(loop, UV_RUN_DEFAULT);
     }
     if (fnCall0 != NULL) {
-        MSCReleaseHandle(vm->djuru, fnCall0);
+        MSCReleaseHandle(vm, fnCall0);
     }
 
     freeVM();

@@ -48,12 +48,12 @@ static void shutdownStdin() {
     }
 
     if (stdinClass != NULL) {
-        MSCReleaseHandle(getCurrentThread(), stdinClass);
+        MSCReleaseHandle(getVM(), stdinClass);
         stdinClass = NULL;
     }
 
     if (stdinOnData != NULL) {
-        MSCReleaseHandle(getCurrentThread(), stdinOnData);
+        MSCReleaseHandle(getVM(), stdinOnData);
         stdinOnData = NULL;
     }
 }
@@ -62,7 +62,7 @@ void ioShutdown() {
     shutdownStdin();
 
     if (statClass != NULL) {
-        MSCReleaseHandle(getCurrentThread(), statClass);
+        MSCReleaseHandle(getVM(), statClass);
         statClass = NULL;
     }
 }

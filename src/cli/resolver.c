@@ -65,9 +65,9 @@ MSCHandle *resolverClass;
 void freeResolver() {
     MVM *vm = resolver;
     if (resolverClass != NULL) {
-        MSCReleaseHandle(vm->djuru, resolverClass);
-        MSCReleaseHandle(vm->djuru, loadModuleFn);
-        MSCReleaseHandle(vm->djuru, resolveModuleFn);
+        MSCReleaseHandle(vm, resolverClass);
+        MSCReleaseHandle(vm, loadModuleFn);
+        MSCReleaseHandle(vm, resolveModuleFn);
         resolverClass = NULL;
         loadModuleFn = NULL;
         resolveModuleFn = NULL;

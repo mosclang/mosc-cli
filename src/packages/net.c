@@ -9,6 +9,7 @@
 #include "runtime.h"
 #include "scheduler.h"
 #include "msc_ussocket.h"
+#include "../../deps/mosc/src/memory/Value.h"
 
 
 struct ByteArrayList {
@@ -279,10 +280,10 @@ void httpServerReqQuery(Djuru *djuru) {
     MSCSetSlotBytes(djuru, 0, value, len);
 }
 
-static void freeHandleChain(Djuru *djuru, Chain *chain) {
+static void freeHandleChain(MVM *vm, Chain *chain) {
     Chain *it = chain;
     while (it) {
-        MSCReleaseHandle(djuru, (MSCHandle *) it->data);
+        MSCReleaseHandle(vm, (MSCHandle *) it->data);
         Chain *tmp = it;
         it = it->next;
         free(tmp);
@@ -291,13 +292,13 @@ static void freeHandleChain(Djuru *djuru, Chain *chain) {
 
 void httpServerReqDestroy(void *data) {
     struct HttpRequestResponse *reqRes = (struct HttpRequestResponse *) data;
-    Djuru *djuru = getCurrentThread();
+    MVM *vm = getVM();
     if (reqRes->onAbort) {
-        freeHandleChain(djuru, reqRes->onAbort);
+        freeHandleChain(vm, reqRes->onAbort);
         reqRes->onAbort = NULL;
     }
     if (reqRes->onWritable) {
-        freeHandleChain(djuru, reqRes->onWritable);
+        freeHandleChain(vm, reqRes->onWritable);
         reqRes->onWritable = NULL;
     }
 }
@@ -352,7 +353,7 @@ static void reqOnAbortHandler(uws_res_t *res, void *optional_data) {
     Djuru *djuru = getCurrentThread();
     MSCEnsureSlots(djuru, 1);
     MSCSetSlotHandle(djuru, 0, cb);
-    MSCReleaseHandle(djuru, cb);
+    MSCReleaseHandle(djuru->vm, cb);
     MSCCall(djuru, fnCall);
 }
 
@@ -365,7 +366,7 @@ static void reqOnDataHandler(uws_res_t *res, const char *chunk, size_t chunk_len
     MSCSetSlotBool(djuru, 2, is_end);
     MSCCall(djuru, fnCall2);
     if (is_end) {
-        MSCReleaseHandle(djuru, cb);
+        MSCReleaseHandle(djuru->vm, cb);
     }
 }
 
@@ -633,21 +634,21 @@ static void releaseApp(struct HttpServer *server) {
     }
     server->released = true;
     struct HttpRequestBindBuffer *bindings = server->bindings;
-    Djuru *djuru = getCurrentThread();
+    MVM *vm = getVM();
     while (bindings) {
         if (bindings->value->handler != NULL) {
-            MSCReleaseHandle(djuru, bindings->value->handler);
+            MSCReleaseHandle(vm, bindings->value->handler);
         }
         if (bindings->value->wsHandlers) {
             struct WsBindings *wsBindings = bindings->value->wsHandlers;
-            if (wsBindings->drain) MSCReleaseHandle(djuru, wsBindings->drain);
-            if (wsBindings->open) MSCReleaseHandle(djuru, wsBindings->open);
-            if (wsBindings->close) MSCReleaseHandle(djuru, wsBindings->close);
-            if (wsBindings->message) MSCReleaseHandle(djuru, wsBindings->message);
-            if (wsBindings->upgrade) MSCReleaseHandle(djuru, wsBindings->upgrade);
-            if (wsBindings->ping) MSCReleaseHandle(djuru, wsBindings->ping);
-            if (wsBindings->pong) MSCReleaseHandle(djuru, wsBindings->pong);
-            if (wsBindings->subscription) MSCReleaseHandle(djuru, wsBindings->subscription);
+            if (wsBindings->drain) MSCReleaseHandle(vm, wsBindings->drain);
+            if (wsBindings->open) MSCReleaseHandle(vm, wsBindings->open);
+            if (wsBindings->close) MSCReleaseHandle(vm, wsBindings->close);
+            if (wsBindings->message) MSCReleaseHandle(vm, wsBindings->message);
+            if (wsBindings->upgrade) MSCReleaseHandle(vm, wsBindings->upgrade);
+            if (wsBindings->ping) MSCReleaseHandle(vm, wsBindings->ping);
+            if (wsBindings->pong) MSCReleaseHandle(vm, wsBindings->pong);
+            if (wsBindings->subscription) MSCReleaseHandle(vm, wsBindings->subscription);
             free(bindings->value->wsHandlers);
         }
         struct HttpRequestBindBuffer *old = bindings;
@@ -1144,36 +1145,36 @@ void httpServerRun(Djuru *djuru) {
 
 void httpShutdown() {
 
-    Djuru *djuru = getCurrentThread();
+    MVM *vm = getVM();
     if (httpReqResClass) {
-        MSCReleaseHandle(djuru, httpReqResClass);
+        MSCReleaseHandle(vm, httpReqResClass);
     }
     if (httpServerClass) {
-        MSCReleaseHandle(djuru, httpServerClass);
+        MSCReleaseHandle(vm, httpServerClass);
     }
     if (socketClass) {
-        MSCReleaseHandle(djuru, socketClass);
+        MSCReleaseHandle(vm, socketClass);
     }
     if (socketContextClass) {
-        MSCReleaseHandle(djuru, socketContextClass);
+        MSCReleaseHandle(vm, socketContextClass);
     }
     if (fnCall) {
-        MSCReleaseHandle(djuru, fnCall);
+        MSCReleaseHandle(vm, fnCall);
     }
     if (fnCall1) {
-        MSCReleaseHandle(djuru, fnCall1);
+        MSCReleaseHandle(vm, fnCall1);
     }
     if (fnCall2) {
-        MSCReleaseHandle(djuru, fnCall2);
+        MSCReleaseHandle(vm, fnCall2);
     }
     if (fnCall3) {
-        MSCReleaseHandle(djuru, fnCall3);
+        MSCReleaseHandle(vm, fnCall3);
     }
     if (fnCall4) {
-        MSCReleaseHandle(djuru, fnCall4);
+        MSCReleaseHandle(vm, fnCall4);
     }
     if (wsSocketClass) {
-        MSCReleaseHandle(djuru, wsSocketClass);
+        MSCReleaseHandle(vm, wsSocketClass);
     }
 }
 
@@ -1187,7 +1188,7 @@ void on_resolved(uv_getaddrinfo_t *resolver, int status, struct addrinfo *res) {
         free(resolver);
         MSCSetSlotNull(djuru, 1);
         MSCCall(djuru, fnCall1);
-        MSCReleaseHandle(djuru, cb);
+        MSCReleaseHandle(djuru->vm, cb);
         return;
     }
     char addr[17] = {'\0'};
@@ -1196,7 +1197,7 @@ void on_resolved(uv_getaddrinfo_t *resolver, int status, struct addrinfo *res) {
     uv_freeaddrinfo(res);
     MSCSetSlotString(djuru, 1, addr);
     MSCCall(djuru, fnCall1);
-    MSCReleaseHandle(djuru, cb);
+    MSCReleaseHandle(djuru->vm, cb);
 }
 
 void dnsQuery(Djuru *djuru) {
@@ -1586,7 +1587,7 @@ void socketContextSetOpenEvent(Djuru *djuru) {
     SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
     if (context->openEvent != NULL) {
         // release previous handle
-        MSCReleaseHandle(djuru, context->openEvent);
+        MSCReleaseHandle(djuru->vm, context->openEvent);
     }
     context->openEvent = MSCGetSlotHandle(djuru, 1);
 }
@@ -1595,7 +1596,7 @@ void socketContextSetCloseEvent(Djuru *djuru) {
     SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
     if (context->closeEvent != NULL) {
         // release previous handle
-        MSCReleaseHandle(djuru, context->closeEvent);
+        MSCReleaseHandle(djuru->vm, context->closeEvent);
     }
     context->closeEvent = MSCGetSlotHandle(djuru, 1);
 }
@@ -1604,7 +1605,7 @@ void socketContextSetDataEvent(Djuru *djuru) {
     SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
     if (context->dataEvent != NULL) {
         // release previous handle
-        MSCReleaseHandle(djuru, context->dataEvent);
+        MSCReleaseHandle(djuru->vm, context->dataEvent);
     }
     context->dataEvent = MSCGetSlotHandle(djuru, 1);
 }
@@ -1613,7 +1614,7 @@ void socketContextSetEndEvent(Djuru *djuru) {
     SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
     if (context->endEvent != NULL) {
         // release previous handle
-        MSCReleaseHandle(djuru, context->endEvent);
+        MSCReleaseHandle(djuru->vm, context->endEvent);
     }
     context->endEvent = MSCGetSlotHandle(djuru, 1);
 }
@@ -1622,7 +1623,7 @@ void socketContextSetWritableEvent(Djuru *djuru) {
     SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
     if (context->writableEvent != NULL) {
         // release previous handle
-        MSCReleaseHandle(djuru, context->writableEvent);
+        MSCReleaseHandle(djuru->vm, context->writableEvent);
     }
     context->writableEvent = MSCGetSlotHandle(djuru, 1);
 }
@@ -1631,7 +1632,7 @@ void socketContextSetErrorEvent(Djuru *djuru) {
     SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
     if (context->errorEvent != NULL) {
         // release previous handle
-        MSCReleaseHandle(djuru, context->errorEvent);
+        MSCReleaseHandle(djuru->vm, context->errorEvent);
     }
     context->errorEvent = MSCGetSlotHandle(djuru, 1);
 }
@@ -1640,7 +1641,7 @@ void socketContextSetServerNameEvent(Djuru *djuru) {
     SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
     if (context->serverNameEvent != NULL) {
         // release previous handle
-        MSCReleaseHandle(djuru, context->serverNameEvent);
+        MSCReleaseHandle(djuru->vm, context->serverNameEvent);
     }
     context->serverNameEvent = MSCGetSlotHandle(djuru, 1);
 }
@@ -1657,38 +1658,39 @@ void socketContextDestroy(void *handle) {
         }
         us_socket_context_free(context->ssl, context->context);
     }
-    Djuru *djuru = getCurrentThread();
+    MVM *vm = getVM();
     if (context->openEvent != NULL) {
-        MSCReleaseHandle(djuru, context->openEvent);
+        MSCReleaseHandle(vm, context->openEvent);
     }
     if (context->writableEvent != NULL) {
-        MSCReleaseHandle(djuru, context->writableEvent);
+        MSCReleaseHandle(vm, context->writableEvent);
     }
     if (context->dataEvent != NULL) {
-        MSCReleaseHandle(djuru, context->dataEvent);
+        MSCReleaseHandle(vm, context->dataEvent);
     }
     if (context->errorEvent != NULL) {
-        MSCReleaseHandle(djuru, context->errorEvent);
+        MSCReleaseHandle(vm, context->errorEvent);
     }
     if (context->closeEvent != NULL) {
-        MSCReleaseHandle(djuru, context->closeEvent);
+        MSCReleaseHandle(vm, context->closeEvent);
     }
     if (context->endEvent != NULL) {
-        MSCReleaseHandle(djuru, context->endEvent);
+        MSCReleaseHandle(vm, context->endEvent);
     }
     if (context->serverNameEvent != NULL) {
-        MSCReleaseHandle(djuru, context->serverNameEvent);
+        MSCReleaseHandle(vm, context->serverNameEvent);
     }
 }
 
 void socketDestroy(void *handle) {
     SocketWrapper *wrapper = (SocketWrapper *) handle;
+    MVM* vm = getVM();
     if (wrapper->data != NULL) {
-        MSCReleaseHandle(getCurrentThread(), wrapper->data);
+        MSCReleaseHandle(vm, wrapper->data);
         wrapper->data = NULL;
     }
     if (wrapper->ref != NULL) {
-        MSCReleaseHandle(getCurrentThread(), wrapper->ref);
+        MSCReleaseHandle(vm, wrapper->ref);
         wrapper->ref = NULL;
     }
     if (!wrapper->closed) {
@@ -1741,11 +1743,11 @@ void socketContextClose(Djuru *djuru) {
 void socketClose(Djuru *djuru) {
     SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
     if (wrapper->data != NULL) {
-        MSCReleaseHandle(getCurrentThread(), wrapper->data);
+        MSCReleaseHandle(djuru->vm, wrapper->data);
         wrapper->data = NULL;
     }
     if(wrapper->ref != NULL) {
-        MSCReleaseHandle(djuru, wrapper->ref);
+        MSCReleaseHandle(djuru->vm, wrapper->ref);
         wrapper->ref = NULL;
     }
     us_socket_close(wrapper->ssl, wrapper->socket, 0, NULL);
@@ -1837,7 +1839,7 @@ void socketSetData(Djuru *djuru) {
     SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
     if (wrapper->data != NULL) {
         // free the old handle
-        MSCReleaseHandle(djuru, wrapper->data);
+        MSCReleaseHandle(djuru->vm, wrapper->data);
     }
     wrapper->data = MSCGetSlotHandle(djuru, 1);
     MSCSetSlotNull(djuru, 0);

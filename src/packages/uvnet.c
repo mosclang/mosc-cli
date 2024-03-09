@@ -3,6 +3,7 @@
 //
 #include "msc.h"
 #include "runtime.h"
+#include "../../deps/mosc/src/memory/Value.h"
 
 // ############################################################### Socket related functions #####################################################################
 
@@ -12,18 +13,18 @@ static MSCHandle *fnCall1;
 static MSCHandle *fnCall2;
 
 void shutdownUVSocket() {
-    Djuru *djuru = getCurrentThread();
+    MVM *vm = getVM();
     if (socketClass) {
-        MSCReleaseHandle(djuru, socketClass);
+        MSCReleaseHandle(vm, socketClass);
     }
     if (fnCall) {
-        MSCReleaseHandle(djuru, fnCall);
+        MSCReleaseHandle(vm, fnCall);
     }
     if (fnCall1) {
-        MSCReleaseHandle(djuru, fnCall1);
+        MSCReleaseHandle(vm, fnCall1);
     }
     if (fnCall2) {
-        MSCReleaseHandle(djuru, fnCall2);
+        MSCReleaseHandle(vm, fnCall2);
     }
 }
 
@@ -104,18 +105,18 @@ void uvSocketDestroy(void *handle) {
     if (!data->closed) {
         uv_close((uv_handle_t *) socket, socketCloseCB);
     }
-    Djuru *djuru = getCurrentThread();
+    MVM *vm = getVM();
     if (data->acceptEvent != NULL) {
-        MSCReleaseHandle(djuru, data->acceptEvent);
+        MSCReleaseHandle(vm, data->acceptEvent);
     }
     if (data->connectEvent != NULL) {
-        MSCReleaseHandle(djuru, data->connectEvent);
+        MSCReleaseHandle(vm, data->connectEvent);
     }
     if (data->dataEvent != NULL) {
-        MSCReleaseHandle(djuru, data->dataEvent);
+        MSCReleaseHandle(vm, data->dataEvent);
     }
     if (data->errorEvent != NULL) {
-        MSCReleaseHandle(djuru, data->errorEvent);
+        MSCReleaseHandle(vm, data->errorEvent);
     }
     free(data);
 }
@@ -252,7 +253,7 @@ void socketWriteCb(uv_write_t *r, int status) {
 
     SocketData *data = (SocketData *) req->socket->data;
     if (req->guard != NULL) {
-        MSCReleaseHandle(getCurrentThread(), req->guard);
+        MSCReleaseHandle(getVM(), req->guard);
     }
     free(req);
     free(r);
