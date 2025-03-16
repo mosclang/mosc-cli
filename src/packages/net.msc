@@ -307,9 +307,6 @@ kulu HttpInitOption {
     }
 }
 dunan kulu HttpServer_ {
-    dilan kura_(ssl) {
-        ale.kura_(ssl, gansan)
-    }
     dilan kura_(ssl, options) {
     }
     dunan any_(pattern, djuru)
@@ -331,10 +328,10 @@ kulu HttpServer {
     nin _running = galon
     nin _app;
     dilan kura(options) {
-        ale._app = HttpServer_.kura_(options.ssl)
+        ale._app = HttpServer_.kura_(options.ssl, gansan)
     }
     dilan kura() {
-        ale._app = HttpServer_.kura_(galon)
+        ale._app = HttpServer_.kura_(galon, gansan)
     }
 
     dunan dialen ensureGlobalInit_()

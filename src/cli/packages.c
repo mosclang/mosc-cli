@@ -18,6 +18,7 @@
 #include "nafamaw.h"
 
 #include "ensure.msc.inc"
+#include "lahidu.msc.inc"
 #include "net.msc.inc"
 
 extern void setRootDirectory(Djuru *djuru);
@@ -440,6 +441,9 @@ static ModuleRegistry coreCliModules[] =
                 END_MODULE
 
                 MODULE(ensure)
+                END_MODULE
+
+                MODULE(lahidu)
                 END_MODULE
 
                 MODULE(net)

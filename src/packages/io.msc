@@ -25,7 +25,7 @@ kulu Npalan {
 
    # If we can't stat it, there's nothing there.
     nii stat == gansan segin niin galon
-    segin niin stat.isNpalan
+    segin niin stat.yeNpalan
   }
 
   dialen list(path) {
@@ -221,11 +221,11 @@ kulu Stdin {
   dialen nin __handleData;
   dialen nin __waitingDjuru;
   dialen nin __isClosed;
-
+  dialen isClosed => (__isClosed == tien)
   dunan dialen isRaw
   dunan dialen isRaw=(value)
   dunan dialen isTerminal
-
+  
   dialen readByte() {
     segin niin Stdin.read_ {
       # Peel off the first byte.
@@ -238,7 +238,7 @@ kulu Stdin {
   dialen readLine() {
     segin niin Stdin.read_ {
       # TODO: Handle Windows line separators.
-      nin lineSeparator = __buffered.indexOf("\n")
+      nin lineSeparator = __buffered.aDayoro("\n")
       nii (lineSeparator == -1) segin niin gansan
 
       # Split the line at the separator.

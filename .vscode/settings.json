@@ -1,0 +1,30 @@
+{
+    "files.associations": {
+        "path.h": "c",
+        "targetconditionals.h": "c",
+        "string_buffer.h": "c",
+        "dumare.h": "c",
+        "__hash_table": "c",
+        "__split_buffer": "c",
+        "__tree": "c",
+        "array": "c",
+        "bitset": "c",
+        "initializer_list": "c",
+        "list": "c",
+        "map": "c",
+        "set": "c",
+        "string": "c",
+        "string_view": "c",
+        "unordered_map": "c",
+        "unordered_set": "c",
+        "vector": "c",
+        "__bit_reference": "c",
+        "__node_handle": "c",
+        "__memory": "c",
+        "limits": "c",
+        "locale": "c",
+        "optional": "c",
+        "ratio": "c",
+        "tuple": "c"
+    }
+}

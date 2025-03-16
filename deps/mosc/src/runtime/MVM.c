@@ -95,7 +95,7 @@ static Upvalue *captureUpvalue(MVM *vm, Djuru *djuru, Value *local) {
     if (upvalue != NULL && upvalue->value == local) return upvalue;
 
     // We've walked past vm local on the stack, so there must not be an
-    // upvalue for it already. Make a new one and link it in in the right
+    // upvalue for it already. Make a new one and link it in the right
     // place to keep the list sorted.
     Upvalue *createdUpvalue = MSCUpvalueFrom(vm, local);
     if (prevUpvalue == NULL) {
@@ -143,6 +143,15 @@ inline static bool checkArity(MVM *vm, Value value, int numArgs) {
 static void methodNotFound(MVM *vm, Class *classObj, int symbol) {
     vm->djuru->error = MSCStringFormatted(vm, "@ does not implement '$'.",
                                           OBJ_VAL(classObj->name), vm->methodNames.data[symbol]->value);
+}
+
+static bool ensureFunction(MVM *vm, Value value) {
+    if(!IS_CLOSURE(value)) {
+        vm->djuru->error = MSCStringFormatted(vm,
+                                              "Can't make a call on a non function value");
+        return false;
+    }
+    return true;
 }
 
 
@@ -231,6 +240,10 @@ Djuru *MSCGetCurrentDjuru(MVM *vm) {
         vm->djuru = MSCDjuruFrom(vm, NULL);
     }
     return vm->djuru;
+}
+
+MVM* MSCGetCurrentVm(Djuru* djuru) {
+    return djuru->vm;
 }
 
 void MSCInitConfig(MSCConfig *config) {
@@ -679,7 +692,7 @@ static Method *findExtensionMethod(MVM *vm, Class *classObj, int symbol) {
         return NULL;
     }
 
-    Method *ret = classObj->methods.count > symbol ? &classObj->methods.data[symbol]: NULL;
+    Method *ret = classObj->methods.count > symbol ? &classObj->methods.data[symbol] : NULL;
     if (ret == NULL || ret->type != METHOD_BLOCK) {
         ret = findExtensionMethod(vm, classObj->superclass, symbol);
         if (ret != NULL && ret->type == METHOD_BLOCK) {
@@ -842,7 +855,7 @@ static MSCInterpretResult runInterpreter(register Djuru *djuru) {
 
 #else
 
-    #define INTERPRET_LOOP                                                       \
+#define INTERPRET_LOOP                                                       \
       loop:                                                                    \
         DEBUG_TRACE_INSTRUCTIONS();                                            \
         instruction = (Opcode)READ_BYTE()     ;                                  \
@@ -920,12 +933,17 @@ static MSCInterpretResult runInterpreter(register Djuru *djuru) {
         CASE_CODE(CALL):
         {
             int numArgs = READ_SHORT() + 1;
-            Value *args = djuru->stackTop - numArgs;
-            Closure *closure = AS_CLOSURE(args[0]);
-            STORE_FRAME();
-            callFunction(djuru, closure, numArgs);
-            LOAD_FRAME();
-            DISPATCH();
+            Value *args = djuru->stackTop - (numArgs);
+            // make sure args[0] is closure, else hit runtime error
+            if (!ensureFunction(vm, args[0])) {
+                RUNTIME_ERROR();
+            } else {
+                Closure *closure = AS_CLOSURE(args[0]);
+                STORE_FRAME();
+                callFunction(djuru, closure, numArgs);
+                LOAD_FRAME();
+                DISPATCH();
+            }
         }
 
 
@@ -971,7 +989,16 @@ static MSCInterpretResult runInterpreter(register Djuru *djuru) {
             args = djuru->stackTop - numArgs;
             classObj = MSCGetClassInline(vm, args[0]);
             goto completeCall;
+            CASE_CODE(CALL_X):
+            method = NULL;
+            // Add one for the implicit receiver argument.
+            symbol = READ_SHORT();
+            numArgs = READ_SHORT() + 1;
+            // The receiver is the first argument.
+            args = djuru->stackTop - numArgs;
+            classObj = MSCGetClassInline(vm, args[0]);
 
+            goto completeCall;
             CASE_CODE(SUPER_0):
             CASE_CODE(SUPER_1):
             CASE_CODE(SUPER_2):
@@ -1000,7 +1027,18 @@ static MSCInterpretResult runInterpreter(register Djuru *djuru) {
             // The superclass is stored in a constant.
             classObj = AS_CLASS(fn->constants.data[READ_SHORT()]);
             goto completeCall;
+            CASE_CODE(SUPER_X):
+            method = NULL;
+            symbol = READ_SHORT();
+            // Add one for the implicit receiver argument.
+            numArgs = READ_SHORT() + 1;
+            // The receiver is the first argument.
+            args = djuru->stackTop - numArgs;
 
+            // The superclass is stored in a constant.
+            classObj = AS_CLASS(fn->constants.data[READ_SHORT()]);
+            
+            goto completeCall;
             completeCall:
             // If the class's method table doesn't include the symbol, bail.
             if (method == NULL && ((symbol >= classObj->methods.count ||

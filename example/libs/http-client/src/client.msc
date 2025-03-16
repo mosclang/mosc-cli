@@ -1,0 +1,283 @@
+kabo "nafamaw" nani StringBuffer, Buffer
+kabo "lahidu" nani Lahidu
+kabo "net" nani SocketContext
+kabo "nafamaw" nani Sebenw
+kulu HttpContext {
+    nin _context
+    nin _backPressing = tien
+    nin _idleTime = 5
+    nin _client
+    nin _connected = galon
+    nin _ssl = 0
+    nin _data
+    nin _host
+    nin _port
+    nin _onOpen
+    nin _onData
+    nin _onEnd
+    nin _onError
+    @weele
+    dilan kura(ssl, host, port, options) {
+        ale._ssl = nii ssl 1 note 0
+        ale._host = host
+        ale._port = port
+        ale._backPressing = options["backPressing"] ?? tien
+        ale._idleTime = options["idleTime"] ?? 5
+    }
+    onData(fn) {
+        ale._onData = fn
+        segin niin ale
+    }
+    onOpen(fn) {
+        ale._onOpen = fn
+        segin niin ale
+    }
+    onEnd(fn) {
+        ale._onEnd = fn
+        segin niin ale
+    }
+    onError(fn) {
+        ale._onError = fn
+        segin niin ale
+    }
+    send(data) {
+        A.yira("Writing $data")
+        ale._client.write(data)
+        segin niin ale
+    }
+    #*
+    * Open a new socket context
+    *#
+    open() {
+        ale._context = SocketContext.kura(ale._ssl, {
+            open: Tii.kura { socket, ip, isClient =>
+                A.yira("Connected to server $ip $isClient")
+                ale._client = socket
+                ale._connected = tien
+                ale._onOpen?.weele(ip, isClient)
+            },
+            error: Tii.kura { socket, code, source =>
+                A.yira("Socket error from $source: $code")
+                ale._onError?.weele(code, source)
+            },
+            data: Tii.kura {socket, data =>
+                ale._onData?.weele(data)
+            },
+            close: Tii.kura { socket =>
+                A.yira("Closed ${ale._data}")
+                socket.close()
+                ale._onEnd.weele()
+            },
+            backPressing: ale._backPressing ?? tien,
+            idleTime: ale._idleTime ?? 5
+        })
+        ale._context.connect(ale._host, ale._port)
+    }
+    close() {
+        ale._client.close()
+    }
+}
+kulu URL {
+    nin _scheme
+    nin _host
+    nin _port
+    nin _location
+    secured => ale.scheme == "https"
+    scheme => ale._scheme
+    host => ale._host
+    port => ale._port
+    location => ale._location
+    dilan kura_(scheme, host, port, location) {
+        ale._scheme = scheme
+        ale._host = host
+        ale._port = port
+        ale._location = location
+    }
+    dialen parse(url) {
+        nii !url segin
+        nin [scheme, rest] = url.faraFara("://")
+        nii scheme == gansan segin
+        nin els = rest?.faraFara("/") ?? []
+        nii els.laKolon segin
+        nin [host, port] = els[0].faraFara(":")
+        segin niin URL.kura_(scheme, host, port ?? (nii scheme == "https" 443 note 80), nii els.hakan < 2 "/" note "/" + els[1...els.hakan].kunBen("/"))
+    }
+    sebenma => "{scheme: ${ale._scheme}, host: ${ale._host}, port: ${ale._port}, secured: ${ale.secured}, location: ${ale._location}}"
+}
+kulu Byte {
+    dialen returnCode => 13 # \r
+    dialen carriageCode => 10 # \n
+}
+kulu HttpHeaders {
+    nin _headers = {}
+    headers => ale._headers
+    @weele
+    dilan kura() {}
+    append(key, value) {
+        ale._headers[key] = value
+        segin niin ale
+    }
+    get(key) {
+        segin niin ale._headers[key]
+    }
+    [key] {
+        segin niin ale._headers[key]
+    }
+    [key] = (value) {
+        ale._headers[key] = value
+    }
+    sebenma => ale._headers.sebenma
+}
+kulu HttpResponse {
+    nin _status = gansan
+    nin _message
+    nin _headers = HttpHeaders()
+    nin _body
+    nin _chunked = galon
+    nin _ended = galon
+    nin _contentLength = -1
+    status => ale._status
+    headers => ale._headers
+    body => ale._body
+    message => ale._message
+    chunked => ale._chunked
+    ended => ale._ended
+    contentLength => ale._contentLength
+    nin bodyStart = -1
+    @weele
+    dilan kura() {
+    }
+    extractHeaders(data) {
+        # nin bytes = data.bytes
+        nin ending = galon
+        nin endChar = ""
+        nin headerLine = StringBuffer.kura(64)
+        ale.bodyStart = 0
+        seginka (data kono byte) {
+            
+            ale.bodyStart = ale.bodyStart + 1
+            nii (byte == Byte.returnCode) {
+                ending = tien
+                endChar = "$endChar\r"
+            } note {
+                nii (byte == Byte.carriageCode) {
+                    endChar = "$endChar\n"
+                } note {
+                    ending = galon
+                    endChar = ""
+                }
+            }
+           headerLine.append(byte)
+           nii ending && endChar == "\r\n\r\n" atike
+        }
+        # ale.bodyStart = headerLine.size +  "\r\n\r\n".bytes.hakan
+        headerLine = headerLine.sebenma
+        nin [statusLine, ...headers] = headerLine.faraFara("\r\n")
+        nin [_, status, message] = statusLine.faraFara(" ")
+        headers.kelenkelen { (line) =>
+                nin [key, value] = line.faraFara(": ")
+                ale._headers[Sebenw.toLowercase(key)] = value
+        }
+        ale._status = status
+        ale._message = message
+        ale._chunked = ale._headers["transfer-encoding"] == "chunked"
+        # ale._ended = !ale._chunked
+        ale._contentLength = Diat.kaboSebenna(ale._headers["content-length"] ?? "-1")
+        segin niin headerLine
+    }
+    handle(data) {
+        nin bytes = data.bytes
+        nii (ale._status == gansan) {
+            nin line = ale.extractHeaders(data.bytes)
+            nin buff = Buffer.from(bytes)
+            ale._body = buff[ale.bodyStart..(bytes.hakan - 1)]
+   
+        } note {
+            nin buff = Buffer.from(bytes)
+            ale._body.append(buff.data)
+        }
+        nii (ale._contentLength > -1) {
+            nii (ale._body.size >= ale._contentLength) {
+                ale._ended = tien
+            }
+        }
+        segin niin ale
+    }
+   
+}
+kulu HttpClient_ {
+    @weele
+    dilan kura() {}
+    sendRequest_(method, fullURL, data) {
+        segin niin Lahidu.kura { res, rej =>
+            nin url = URL.parse(fullURL)
+            nin resp = HttpResponse()
+            nin context = HttpContext(url.secured, url.host, url.port, {})
+            context
+            .onOpen { (ip, isClient) =>
+                context.send("$method ${url.location} HTTP/1.1\r\nHost: ${url.host}\r\nUser-Agent: moscc\r\nAccept: */*\r\n\r\n")
+            }
+            .onData { data =>
+                resp.handle(data)
+                nii (resp.ended) {
+                    context.close()
+                }
+
+            }
+            .onEnd {
+                # A.yira("End ${resp.sebenma}")
+                res(resp)
+            }
+            .onError { (code, source) =>
+                A.yira("Error $code from $source")
+                rej(code, source)
+            }
+            context.open()
+        }
+    }
+    get(url) {
+        segin niin ale.sendRequest_("GET", url, "")
+    }
+    post(url, data) {
+        A.yira("POST $url with $data")
+    }
+    put(url, data) {
+        A.yira("PUT $url with $data")
+    }
+    delete(url) {
+        A.yira("DELETE $url")
+    }
+    patch(url, data) {
+        A.yira("PATCH $url with $data")
+    }
+    ws(url, handler) {
+        A.yira("WS $url")
+    }
+    close() {
+        A.yira("Closing")
+    }
+}
+kulu HttpClient {
+    nin client
+    @weele
+    dilan kura() {
+        ale.client = HttpClient_()
+    }
+    version { "0.1.0" }
+    get(url) {
+        segin niin ale.client.get(url)
+    }
+    post(url, data) {
+        segin niin ale.client.post(url, data)
+    }
+    put(url, data) {
+        segin niin ale.client.put(url, data)
+    }
+    delete(url) {
+        segin niin ale.client.delete(url)
+    }
+    patch(url, data) {
+        segin niin ale.client.patch(url, data)
+    }
+
+}

@@ -88,7 +88,7 @@ kulu CLI {
   }
   dialen runInput() {
     nin code = ""
-    foo(!Stdin.isClosed) code = code + Stdin.read()
+    foo(!Stdin.isClosed) code = code + Stdin.readByte()
     CLI.runCode(code,"(script)")
     segin
   }
@@ -96,8 +96,11 @@ kulu CLI {
     nin moduleName
 
     nii (file == "-") segin niin CLI.runInput()
+    nii (file == "fuu") {
+      # set file path to the fuu script
+      file = Sira.kura(Platform.homePath).kunBen(".mosc_libs").kunBen("fuu").kunBen("fuu.msc").sebenma
+    }
     nii (!Gafe.exists(file)) segin niin CLI.missingScript(file)
-
     nii (SiraSukuya.resolve(file) == SiraSukuya.ABSOLUTE) {
       moduleName = file
     } note {

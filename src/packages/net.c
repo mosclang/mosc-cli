@@ -1492,11 +1492,11 @@ void internalSocketContextServerNameCallback(int ssl, struct us_socket_context_t
 }
 
 void socketContextServerNameCallback(struct us_socket_context_t *c, const char *bytes) {
-    return internalSocketContextServerNameCallback(0, c, bytes);
+    internalSocketContextServerNameCallback(0, c, bytes);
 }
 
 void sslSocketContextServerNameCallback(struct us_socket_context_t *c, const char *bytes) {
-    return internalSocketContextServerNameCallback(1, c, bytes);
+    internalSocketContextServerNameCallback(1, c, bytes);
 }
 
 void socketContextInit(Djuru *djuru) {
@@ -1825,6 +1825,7 @@ void socketWrite(Djuru *djuru) {
     int length;
     const char *bytes = MSCGetSlotBytes(djuru, 1, &length);
     MSCSetSlotDouble(djuru, 0, us_socket_write(wrapper->ssl, wrapper->socket, bytes, length, 1));
+    us_socket_flush(wrapper->ssl, wrapper->socket);
 }
 
 void socketTimeout(Djuru *djuru) {

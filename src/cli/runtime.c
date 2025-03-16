@@ -104,7 +104,7 @@ static Path *realPath(Path *path) {
 }
 
 // Starting at [rootDirectory], walks up containing directories looking for a
-// nearby "mosc_packages" directory. If found, stores it in
+// nearby "mosc_libs" directory. If found, stores it in
 // [MOSCModulesDirectory].
 //
 // If [MOSCModulesDirectory] has already been found, does nothing.
@@ -117,7 +117,7 @@ static void findModulesDirectory() {
     // Keep walking up directories as long as we find them.
     for (;;) {
         Path *modulesDirectory = pathNew(searchDirectory->chars);
-        pathJoin(modulesDirectory, "mosc_packages");
+        pathJoin(modulesDirectory, "mosc_libs");
 
         if (isDirectory(modulesDirectory)) {
             pathNormalize(modulesDirectory);
@@ -153,7 +153,7 @@ static void findModulesDirectory() {
 //   For example, importing "./a/./b/../c" from "./d/e/f" gives you "./d/e/a/c".
 static const char *resolveModule(MVM *vm, const char *importer,
                                  const char *module) {
-    // Logical import strings are used as-is and need no resolution.
+    /* // Logical import strings are used as-is and need no resolution.
     if (pathType(module) == PATH_TYPE_SIMPLE) return module;
 
     // Get the directory containing the importing module.
@@ -167,7 +167,8 @@ static const char *resolveModule(MVM *vm, const char *importer,
     char *resolved = pathToString(path);
 
     pathFree(path);
-    return resolved;
+    return resolved;*/
+    return MOSCResolveModule(importer, module);
 }
 
 // Attempts to read the source for [module] relative to the current root
@@ -177,17 +178,17 @@ static const char *resolveModule(MVM *vm, const char *importer,
 // module was found but could not be read.
 static MSCLoadModuleResult loadModule(MVM *vm, const char *module) {
     MSCLoadModuleResult result = {0};
-    Path *filePath;
+    /*Path *filePath;
     if (pathType(module) == PATH_TYPE_SIMPLE) {
-        // If there is no "mosc_packages" directory, then the only logical imports
+        // If there is no "mosc_libs" directory, then the only logical imports
         // we can handle are built-in ones. Let the VM try to handle it.
         findModulesDirectory();
         if (MOSCModulesDirectory == NULL) return loadBuiltInModule(module);
 
         // TODO: Should we explicitly check for the existence of the module's base
-        // directory inside "mosc_packages" here?
+        // directory inside "mosc_libs" here?
 
-        // Look up the module in "mosc_packages".
+        // Look up the module in "mosc_libs".
         filePath = pathNew(MOSCModulesDirectory->chars);
         pathJoin(filePath, module);
 
@@ -201,17 +202,20 @@ static MSCLoadModuleResult loadModule(MVM *vm, const char *module) {
 
     // Add a ".msc" file extension.
     pathAppendString(filePath, ".msc");
-
-    result.onComplete = loadModuleComplete;
-    result.source = readFile(filePath->chars);
-    pathFree(filePath);
-
-    // If we didn't find it, it may be a module built into the CLI or VM, so keep
-    // going.
-    if (result.source != NULL) return result;
+    */
+    char *moduleLocation = MOSCLoadModule(module);
+    if (moduleLocation != NULL && moduleLocation[0] != ':') {
+        result.onComplete = loadModuleComplete;
+        result.source = readFile(moduleLocation);
+        free(moduleLocation);
+        // If we didn't find it, it may be a module built into the CLI or VM, so keep
+        // going.
+        if (result.source != NULL) return result;
+    }
 
     // Otherwise, see if it's a built-in module.
     return loadBuiltInModule(module);
+
 }
 
 // Binds foreign methods declared in either built in modules, or the injected
@@ -381,9 +385,9 @@ MSCInterpretResult runFile(const char *path) {
     // If it looks like a relative path, make it explicitly relative so that we
     // can distinguish it from logical paths.
     // TODO: It might be nice to be able to run scripts from within a surrounding
-    // "mosc_packages" directory by passing in a simple path like "foo/bar". In
+    // "mosc_libs" directory by passing in a simple path like "foo/bar". In
     // that case, here, we could check to see whether the give path exists inside
-    // "mosc_packages" or as a relative path and choose to add "./" or not based
+    // "mosc_libs" or as a relative path and choose to add "./" or not based
     // on that.
     Path *module = pathNew(path);
     if (pathType(module->chars) == PATH_TYPE_SIMPLE) {

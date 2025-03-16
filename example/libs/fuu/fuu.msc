@@ -1,0 +1,185 @@
+kabo "io" nani Npalan, Gafe, GafeFlags
+kabo "os" nani Process, Platform
+kabo "json" nani JSON
+kabo "./helpers" nani rimraf
+kabo "./sira" nani Sira
+
+kulu Color {
+  # dialen GREEN { "\u001b[32m" }
+  dialen GREEN { "\u001b[38;5;46m" }
+  dialen WARN { "\u001b[33m" }
+  dialen RED { "\u001b[31m" }
+  dialen BOLD { "\u001b[1m" }
+  dialen RESET { "\u001b[0m" }
+}
+
+kulu Installer {
+    nin name
+    nin source
+    nin root
+    dilan kura(name, root, source) {
+        ale.name = name
+        ale.source = source
+        ale.root = root
+    }
+    dialen instanceFor(name, root, source) {
+        A.yira("Installer instance for $source")
+        segin niin nii source.beDamineNiin("file://") LocalInstaller.kura(name, root, source) note GitInstaller.kura(name, root, source)
+    }
+}
+kulu GitInstaller ye Installer {
+    dilan kura(name, root, source) {
+        faa(name, root, source)
+    }
+    install() {
+        segin niin galon
+    }
+}
+kulu LocalInstaller ye Installer {
+    dilan kura(name, root, source) {
+        faa(name, root, source)
+    }
+    copyFolder(folder, destination, recursive) {
+        A.yira("Copying file $folder to $destination")
+        nii !Npalan.exists(folder) segin
+        nin sPath = Sira.kura(folder)
+        nin destPath = Sira.kura(destination)
+        nii (Npalan.exists(destPath.sebenma)) {
+            nii !rimraf(destPath.sebenma) segin niin galon
+        }
+        Npalan.create(destPath.sebenma)
+        nin content = Npalan.list(folder)
+        nin ret = tien
+        content.kelenkelen {dir =>
+            nin dirPath = sPath.kunBen(dir).sebenma
+            nii (Gafe.exists(dirPath)) {
+                nin targetPath = Sira.kura(destination).kunBen(dir).sebenma
+                ## case file, copy directly
+                Gafe.open(dirPath) { source =>
+                    Gafe.create(targetPath) { dest => dest.writeBytes(source.readBytes(source.size))}
+                    A.yira("File copied successfully to")
+                }
+            } note {
+                nii recursive ret = ret && ale.copyFolder(dirPath, destPath.kunBen(dir).sebenma, recursive)
+            }
+        }
+        segin niin ret
+    }
+    install() {
+        A.yira("${Color.GREEN}Installing ${ale.name} form ${ale.source}${Color.RESET}")
+        nin qualifiedSource = ale.source[7..-1]
+        nii (!Npalan.exists(qualifiedSource)) {
+            A.yira("${Color.WARN}File not found: at ${qualifiedSource}${Color.RESET}")
+            segin niin galon;
+        }
+        # copy the folder in root
+        segin niin ale.copyFolder(qualifiedSource, Sira.kura(ale.root).kunBen(ale.name).sebenma, tien)
+    }
+}
+
+kulu Fuu {
+    dilan kura() {}
+    nin _version = "0.0.1"
+    mine() {
+        # install
+        nin args = Process.arguments
+        A.yira(Platform.homePath)
+        nii (args.laKolon) {
+            ale.siri()
+            segin niin galon;
+        }
+        nii (args.bAkono("-v") || args.bAkono("--version")) {
+            A.yira("${Color.GREEN}${ale._version}-fuu${Color.RESET}")
+            segin niin tien
+        }
+        nii (args[0].beDamineNiin("-")) {
+            A.yira("${Color.RED}Invalid option received:\nUsage: moscc fuu <lib>\nmoscc fuu -v|--version${Color.RESET}")
+            segin niin galon;
+        }
+        ale.siri(args[0])
+        segin niin tien
+    }
+    ensureInstallation() {
+        nii (!Npalan.exists("mosc_libs")) Npalan.create("mosc_libs")
+        # find the `libs.json` in the current folder
+        nin jsonPath = Sira.kura(Process.cwd).kunBen("./libs.json").sebenma
+        nii (!Gafe.exists(jsonPath)) {
+            A.yira("${Color.RED}Can't find lib.json${Color.RESET}")
+            segin niin galon
+        }
+        segin niin tien
+    }
+    libJson {
+        nin jsonPath = Sira.kura(Process.cwd).kunBen("./libs.json").sebenma
+        A.yira(jsonPath)
+        nin ret
+        nin try = Djuru.kura {
+            segin niin JSON.decode(Gafe.read(jsonPath))
+        }
+        ret = try.aladie()
+        A.yira(try.fili)
+        segin niin nii try.fili gansan note ret
+    }
+    libJson=(v) {
+        nin jsonPath = Sira.kura(Process.cwd).kunBen("./libs.json").sebenma
+        nin try = Djuru.kura {
+            Gafe.openWithFlags(jsonPath, GafeFlags.writeOnly|GafeFlags.truncate) { file =>
+                file.writeBytes(JSON.encode(v))
+            }
+        }
+        try.aladie()
+        segin niin nii try.fili gansan note tien
+    }
+    guessNameAndLocation(lib) {
+        segin niin nii (lib.beDamineNiin("file:")) {
+            lib.faraFara("/")[-1]
+        } note {
+            nin els = lib.faraFara("@")
+            nii(els.hakan > 1) {
+                segin niin [els[0], els[1..-1].kunBen("@")]
+            }
+            segin niin [lib, lib]
+        }
+    }
+    siri(lib) {
+        nii !ale.ensureInstallation() segin
+        nin json = ale.libJson
+        nii(!json) {
+            A.yira("Installation failed")
+            segin
+        }
+        nin [name, at] = ale.guessNameAndLocation(lib)
+
+        nin dependencies = json["dependencies"]
+        A.yira("Install $name")
+        nin installer = Installer.instanceFor(name, "mosc_libs", at)
+        nii (installer.install()) {
+            dependencies[name] = {
+                "name": name,
+                "at": at
+            }
+            ale.libJson = json
+        }
+
+    }
+    siri() {
+        A.yira("${Color.GREEN}Installing libs${Color.RESET}")
+        
+        nii !ale.ensureInstallation() segin
+        nin json = ale.libJson
+        A.yira(json)
+        nii(!json) {
+            A.yira("Installation failed")
+            segin
+        }
+        nin dependencies = json["dependencies"]
+        dependencies.keys.kelenkelen { k =>
+            nin tmp = dependencies[k]
+            nin installer = Installer.instanceFor(k, "mosc_libs", tmp["at"])
+            A.yira("Deps $k: ${tmp} - $installer")
+            installer.install()
+        }
+    }
+}
+
+Fuu.kura().mine()

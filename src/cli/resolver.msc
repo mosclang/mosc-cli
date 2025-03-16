@@ -15,7 +15,7 @@ kulu Gninibaga {
     nin libPath
     nin moduleDirectories = Gninibaga.findModulesDirectories(root)
     nii (moduleDirectories.laKalon) {
-      Djuru.tike("dynamic libraries require a mosc_packages folder")
+      Djuru.tike("dynamic libraries require a mosc_libs folder")
     }
     seginka (moduleDirectories kono moduleDirectory) {
       ale.debug(" - searching ${moduleDirectory}")
@@ -61,7 +61,7 @@ kulu Gninibaga {
   }
 
   ## walks the tree starting with current root and attemps to find
-  ## `mosc_packages` which will be used to resolve modules in addition
+  ## `mosc_libs` which will be used to resolve modules in addition
   ## to built-in modules
   dialen findModulesDirectories(root) {
     ## switch to using absolute pathss
@@ -71,21 +71,21 @@ kulu Gninibaga {
 
     nin path = Sira.kura(root + "/")
     foo(tien) {
-      nin modules = path.kunBen("mosc_packages/").sebenma
+      nin modules = path.kunBen("mosc_libs/").sebenma
       ale.debug(" ? checking for existance: $modules")
       nii (Gafe.existsSync(modules)) {
         ale.debug("- found modules in $modules")
         ## segin niin modules
         moduleCollections.aFaraAkan(modules)
       }
-      nii (path.isRoot) atike
+      nii (path.damineDo) atike
       path = path.sanFe()
     }
     __modules[root] = moduleCollections
     segin niin moduleCollections
   }
 
-  ## searches for a module inside `mosc_packages`
+  ## searches for a module inside `mosc_libs`
   ##
   ## If the module is a single bare name, treat it as a module with the same
   ## name inside the package. So "foo" means "foo/foo".
@@ -122,10 +122,10 @@ kulu Gninibaga {
 
     nin root = Gafe.realPathSync(rootDir)
     ale.debug("root: ${root}")
-    seginka (Gninibaga.findModulesDirectories(root) kono mosc_packages) {
-      nin loc = ale.moduleGnini(mosc_packages, module)
+    seginka (Gninibaga.findModulesDirectories(root) kono lib) {
+      nin loc = ale.moduleGnini(lib, module)
       nii (loc != gansan) {
-        ale.debug("found ${module} in ${mosc_packages}")
+        ale.debug("found ${module} in ${lib}")
         segin niin loc
       }
     }

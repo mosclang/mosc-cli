@@ -1,0 +1,42 @@
+kabo "io" nani Npalan, Gafe, Stat
+kabo "./sira" nani Sira
+kabo "lahidu" nani Lahidu
+
+tii rm_(folder) {
+    segin niin Lahidu.kura {res, rej =>
+        nin djuru = Djuru.kura {
+            nin stat = Stat.path(folder)
+            nii (stat.yeNpalan){
+                nii (Npalan.list(folder).laKolon){
+                 Npalan.delete(folder)
+                 segin niin res.weele(tien)
+                } note {
+                  segin niin res.weele(rimraf(folder))
+                }
+            }
+            nii (stat.yeGafe) {
+                Gafe.delete(folder)
+                segin niin res.weele(tien)
+            }
+            segin niin res.weele(galon)
+        }
+        djuru.aladie()
+        nii (djuru.fili) {
+          A.yira("Error: ${djuru.fili}")
+         rej(djuru.fili)
+        }
+    }
+
+}
+tii rimraf(folder) {
+    nii !Npalan.exists(folder) segin niin galon
+    nin ret = tien
+    nin promises = []
+    nin children = Npalan.list(folder)
+    children.kelenkelen { it =>
+        ret = ret && promises.aFaraAkan(rm_(Sira.kura(folder).kunBen(it).sebenma))
+    }
+    Lahidu.konon(promises[0])
+    Lahidu.konon(rm_(folder))
+    segin niin ret
+}

@@ -79,8 +79,8 @@ void saveResolverHandles(Djuru *djuru) {
     MSCEnsureSlots(djuru, 1);
     MSCGetVariable(djuru, "<gini>", "Gninibaga", 0);
     resolverClass = MSCGetSlotHandle(djuru, 0);
-    resolveModuleFn = MSCMakeCallHandle(resolver, "moduleGnini(_,_,_)");
-    loadModuleFn = MSCMakeCallHandle(resolver, "naniModuleYe(_,_)");
+    resolveModuleFn = MSCMakeCallHandle(resolver, "resolveModule(_,_,_)");
+    loadModuleFn = MSCMakeCallHandle(resolver, "loadModule(_,_)");
 }
 
 static MSCExternMethodFn bindResolverForeignMethod(MVM *vm, const char *module,

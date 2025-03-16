@@ -147,7 +147,7 @@ void fileDirectoryCallback(uv_fs_t *request) {
 void directoryCreate(Djuru *djuru) {
     const char *path = MSCGetSlotString(djuru, 1);
     uv_fs_t *request = createRequest(MSCGetSlotHandle(djuru, 2));
-    uv_fs_mkdir(getLoop(), request, path, 0, fileDirectoryCallback);
+    uv_fs_mkdir(getLoop(), request, path, S_IRWXU, fileDirectoryCallback);
 }
 
 void directoryDelete(Djuru *djuru) {
@@ -202,7 +202,7 @@ static void fileOpenCallback(uv_fs_t *request) {
 static int mapFileFlags(int flags) {
     int result = 0;
 
-    // Note: These must be kept in sync with FileFlags in io.msc.
+    // Note: These must be kept in sync with GafeFlags in io.msc.
     if (flags & 0x01) result |= O_RDONLY;
     if (flags & 0x02) result |= O_WRONLY;
     if (flags & 0x04) result |= O_RDWR;
@@ -450,7 +450,8 @@ void statIsDirectory(Djuru *djuru) {
 
 void statIsFile(Djuru *djuru) {
     uv_stat_t *stat = (uv_stat_t *) MSCGetSlotExtern(djuru, 0);
-    MSCSetSlotBool(djuru, 0, S_ISREG(stat->st_mode));
+    bool isFile =  S_ISREG(stat->st_mode);
+    MSCSetSlotBool(djuru, 0, isFile);
 }
 
 // Sets up the stdin stream if not already initialized.
@@ -516,7 +517,7 @@ static void allocCallback(uv_handle_t *handle, size_t suggestedSize,
 static void stdinReadCallback(uv_stream_t *stream, ssize_t numRead,
                               const uv_buf_t *buffer) {
     Djuru *djuru = getCurrentThread();
-
+    
     if (stdinClass == NULL) {
         MSCEnsureSlots(djuru, 1);
         MSCGetVariable(djuru, "io", "Stdin", 0);

@@ -1,29 +1,39 @@
 kabo "net" nani Socket, SocketContext
+kabo "timer" nani WaatiMassa
 
 nin context = SocketContext.kura(1, {
     open: Tii.kura { socket, ip, isClient =>
         A.yira("Connected to server $ip $isClient")
-        socket.write("GET / HTTP/1.1\r\nHost: www.google.com\r\nConnection: close\r\n\r\n")
+
+        
+        socket.write("GET /fr/ HTTP/1.1\r\nHost: mosclang.com\r\nUser-Agent: moscc\r\nAccept: */*\r\nConnection: close\r\n\r\n")
+        WaatiMassa.sunogo(2000)
+        socket.flush()
     },
 
     error: Tii.kura { socket, code, source =>
         A.yira("Socket error from $source: $code")
     },
     data: Tii.kura {socket, data =>
+        A.yira("Data with ${data?.hakan}")
         nii (!socket.data) {
           socket.data = {resp: ""}
         }
         socket.data["resp"] = "${socket.data["resp"]}$data"
-        # A.yira("Data with ${data.hakan}")
-        #nii (data.beBanNiin("\r\n")) {
-         # socket.close()
-        #}
+        A.yira("Data with ${data}")
+        nii (data.beBanNiin("\r\n")) {
+         socket.close()
+        }
+    },
+    end: Tii.kura {socket =>
+        A.yira("End ${socket.data}")
+        socket.close()
     },
     close: Tii.kura { socket =>
+        A.yira("Closed ${socket.data}")
         socket.close()
-        A.yira("Closed ${socket.data["resp"]}")
     },
     backPressing: tien,
-    idleTime: 5
+    idleTime: 15
 })
-context.connect("www.google.com", 443)
+context.connect("mosclang.com", 443)

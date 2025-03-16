@@ -275,7 +275,7 @@ DEF_FN_CALL(15)
 DEF_FN_CALL(16)
 
 DEF_PRIMITIVE(fn_toString) {
-    RETURN_VAL(CONST_STRING(djuru, "<tii>"));
+    RETURN_VAL(CONST_STRING(djuru->vm, "<tii>"));
 }
 
 // Creates a new list of size args[1], with all elements initialized to args[2].
@@ -1444,7 +1444,9 @@ void load(MVM *vm) {
     PRIMITIVE(vm->core.mapClass, "valueIteratorValue_(_)", map_valueIteratorValue);
 
     vm->core.rangeClass = AS_CLASS(MSCFindVariable(vm, coreModule, "Funan"));
-    PRIMITIVE(vm->core.rangeClass, "kabo", range_from);
+    PRIMITIVE(vm->core.rangeClass, "kamine", range_from);
+    PRIMITIVE(vm->core.rangeClass, "damine", range_from);
+    // PRIMITIVE(vm->core.rangeClass, "laban", range_to);
     PRIMITIVE(vm->core.rangeClass, "kata", range_to);
     PRIMITIVE(vm->core.rangeClass, "fitini", range_min);
     PRIMITIVE(vm->core.rangeClass, "dan", range_max);

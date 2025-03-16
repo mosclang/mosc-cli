@@ -1,0 +1,30 @@
+kabo "mio/mio" nani client
+kabo "io" nani Stdin, Stdout, Gafe, GafeFlags
+kabo "lahidu" nani Lahidu
+kabo "nafamaw" nani Buffer
+kabo "timer" nani WaatiMassa
+
+# client.get("https://mosclang.com/mosc_logo.png").tiimena { res =>
+#     nin th = Djuru.kura {
+#         Gafe.openWithFlags("image.png", GafeFlags.writeOnly|GafeFlags.truncate) {file =>
+#             file.writeBytes(res.body.data)
+#         }
+#     }
+#     th.aladie();
+#     A.yira(th.fili)
+#     A.yira("Res: ${res.body.data.bytes}")
+# }
+
+Lahidu.tiime("Hello").tiimena { res =>
+    A.yira("First")
+    WaatiMassa.sunogo(5000)
+    Lahidu.tiime().tiimena { res =>
+        A.yira("Second")
+    }
+}
+# A.yira(((Buffer.from("Molobala"))[0...8]))
+# A.yira(client.version)
+# A.seben(">>>")
+# Stdout.flush()
+# nin name = Stdin.readLine()
+# A.yira(name)

@@ -1,0 +1,3 @@
+/Users/doumbia0804/CLionProjects/moscc/build/CMakeFiles/moscc.dir
+/Users/doumbia0804/CLionProjects/moscc/build/CMakeFiles/edit_cache.dir
+/Users/doumbia0804/CLionProjects/moscc/build/CMakeFiles/rebuild_cache.dir

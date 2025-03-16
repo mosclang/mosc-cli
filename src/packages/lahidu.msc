@@ -3,40 +3,70 @@ kabo "scheduler" nani DogodaBaga
 kulu Lahidu {
     nin _djuru
     nin _handler
-    nin _success = Tii.kura { value =>
-        DogodaBaga.resume_(_djuru, value)
-    }
-    nin _error = Tii.kura { value =>
-         DogodaBaga.resume_(_djuru, value)
-    }
+    nin _success = Tii.kura {}
+    nin _error = Tii.kura {}
+    nin _state = -1
+    nin _resolvedValue
+    nin _withError = galon
     dilan kura(handler) {
-        nii handler.arity != 2 Djuru.atike("Invalid Lahidu handler")
+        nii handler.arity != 2 Djuru.tike("Invalid Lahidu handler")
         ale._handler = handler
     }
 
-    dialen taa(job) {
-        segin niin Lahidu.kura
-    }
     dialen konon(lahidu) {
-
+        nin d = Djuru.sissanTa
+        nin promises = nii lahidu ye Walan lahidu note [lahidu]
+        nin count = promises.hakan
+        nin res = []
+        promises.kelenkelen {p =>
+            p.tiimena { v =>
+                count = count - 1
+                res.aFaraAkan(v)
+                nii (count == 0) {
+                    nii (Djuru.sissanTa.fili) {
+                        DogodaBaga.resumeError_(d, Djuru.sissanTa.fili)
+                    } note {
+                        DogodaBaga.resume_(d, nii lahidu ye Walan res note v)
+                    }
+                }
+            }
+        }
+        segin niin DogodaBaga.runNextScheduled_()
     }
-    dialen tiime() {}
-    dialen tiime(value) {}
+    dialen tiime() { Lahidu.kura {(res, rej) => res.weele(gansan)} }
+    dialen tiime(value) { Lahidu.kura {(res, rej) => res.weele(value)} }
 
     aladie_() {
-        DogodaBaga.aFaraAkan {
-             ale._handler.weele(ale._success, ale._error)
+        nii (ale._state == 1) {
+            # fullfiled one
+            DogodaBaga.nextTick {
+               nii ale._withError ale._error.weele(ale._resolvedValue) note ale._success.weele(ale._resolvedValue)
+            }
+            segin
         }
-        DogodaBaga.trigger()
+        nii ale._state == 0 segin;
+        ale._state = 0
+        DogodaBaga.nextTick {
+             ale._handler.weele(Tii.kura { v =>
+                ale._state = 1
+                ale._resolvedValue = v
+                ale._withError = galon
+                ale._success.weele(v)
+             }, Tii.kura { e =>
+                ale._state = 1
+                ale._resolvedValue = e
+                ale._withError = tien
+                ale._error.weele(e)
+             })
+        }
+
     }
-    tiimena() {}
-    tienna() {}
-}
-
-Lahidu.taa {
-    Gafe.dayelen("")
-}.tiimena {
-
-}.tienna {
-
+    tiimena(fn) {
+        ale._success = fn
+        ale.aladie_()
+    }
+    tienna(fn) {
+        ale._error = fn
+        ale.aladie_()
+    }
 }
