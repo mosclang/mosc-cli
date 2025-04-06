@@ -216,6 +216,9 @@ struct Pattern {
 
 DEFINE_BUFFER(Pattern, Pattern);
 
+DECLARE_BUFFER(Token, Token);
+DEFINE_BUFFER(Token, Token);
+
 struct Compiler {
 
 
@@ -284,7 +287,8 @@ struct Compiler {
     Map *attributes;
     // Attributes for the next class or method.
     Map *floatingAttributes;
-
+    TokenBuffer *constructorsAssignments;
+    bool captureAssignation;
 };
 
 // Forward declarations
@@ -303,7 +307,23 @@ static void copyMethodAttributes(Compiler *compiler, bool isExtern,
 
 static void functionCall(Compiler *compiler, bool canAssign);
 
+// Walks the compiler chain to find the compiler for the nearest class
+// enclosing this one. Returns NULL if not currently inside a class definition.
+static Compiler *getEnclosingClassCompiler(Compiler *compiler) {
+    while (compiler != NULL) {
+        if (compiler->enclosingClass != NULL) return compiler;
+        compiler = compiler->parent;
+    }
 
+    return NULL;
+}
+
+// Walks the compiler chain to find the nearest class enclosing this one.
+// Returns NULL if not currently inside a class definition.
+static ClassInfo *getEnclosingClass(Compiler *compiler) {
+    compiler = getEnclosingClassCompiler(compiler);
+    return compiler == NULL ? NULL : compiler->enclosingClass;
+}
 
 
 
@@ -346,7 +366,7 @@ static void parsePrecedence(Compiler *compiler, Precedence precedence);
 static bool statement(Compiler *compiler, bool expr);
 
 static bool definition(Compiler *compiler, bool expr);
-
+static void loadThis(Compiler *compiler);
 
 static bool isDeclared(IntBuffer *methods, int symbol) {
     for (int i = 0; i < methods->count; i++) {
@@ -365,6 +385,8 @@ static void initCompiler(Compiler *compiler, Parser *parser, Compiler *parent,
     compiler->loop = NULL;
     compiler->enclosingClass = NULL;
     compiler->isInitializer = false;
+    compiler->constructorsAssignments = NULL;
+    compiler->captureAssignation = false;
     compiler->isExtension = false;
     compiler->dotSource = EOF_TOKEN;
 
@@ -1097,12 +1119,37 @@ int declareFunction(Compiler *compiler, const char *name, int length) {
 
     return addLocal(compiler, name, length);
 }
+static bool captureImplicitAssignation(Compiler* compiler) {
+    if(match(compiler, THIS_TOKEN)) {
+        // this may be a property affectation from param shortcut
+        if(compiler->constructorsAssignments == NULL) {
+            error(compiler, "keyword used outsed of constructor conext\n");
+        }
+        consume(compiler, DOT_TOKEN, "Expect dot after `ale`.");
+        return true;
+    }
+    return false;
+}
+static inline void CAPTURE_ASSIGNATION(Compiler* compiler, int symbol, Token *token, bool capture) {
+    if(compiler->constructorsAssignments != NULL)  {
+        if(capture && symbol != - 1) {
+            MSCWriteTokenBuffer(compiler->parser->vm, compiler->constructorsAssignments, *token);
+        } else {
+            MSCWriteTokenBuffer(compiler->parser->vm, compiler->constructorsAssignments, invalidToken());
+        }
+    }
+}
 
 // Parses a name token and declares a variable in the current scope with that
 // name. Returns its slot.
 int declareNamedVariable(Compiler *compiler) {
+    bool captureAssignation = captureImplicitAssignation(compiler);
+    compiler->captureAssignation = compiler->captureAssignation || captureAssignation;
     consume(compiler, ID_TOKEN, "Expect variable name.");
-    return declareVariable(compiler, NULL);
+    Token id = compiler->parser->previous;
+    int ret = declareVariable(compiler, NULL);
+    CAPTURE_ASSIGNATION(compiler, ret, &id, captureAssignation);
+    return ret;
 }
 
 // Stores a variable with the previously defined symbol in the current scope.
@@ -1358,7 +1405,9 @@ static Pattern parsePattern(Compiler *compiler, PatternType parent, bool declare
     Pattern ret;
     ret.alias = NULL;
     ret.parent = parent;
-    if (match(compiler, ID_TOKEN) || match(compiler, STRING_CONST_TOKEN)) {
+    bool captureAssignation = captureImplicitAssignation(compiler);
+    
+    if (match(compiler, ID_TOKEN) || (match(compiler, STRING_CONST_TOKEN) && !captureAssignation)) {
         ret.type = NONE_PATTERN;
         initToken(&ret.as.id, compiler->parser->previous.type, compiler->parser->previous.start,
                   compiler->parser->previous.length,
@@ -1374,16 +1423,18 @@ static Pattern parsePattern(Compiler *compiler, PatternType parent, bool declare
                 // ret.variable = Variable(symbol, compiler->scopeDepth == -1 ? SCOPE_MODULE : SCOPE_LOCAL);
             } else if (declare) {
                 int symbol = declareVariable(compiler, &ret.as.id);
+                CAPTURE_ASSIGNATION(compiler, symbol, &ret.as.id, captureAssignation);
                 newVariable(&ret.variable, symbol, compiler->scopeDepth == -1 ? SCOPE_MODULE : SCOPE_LOCAL);
                 initVariable(compiler, &ret.variable);
             }
         } else if (declare) {
             int symbol = declareVariable(compiler, &ret.as.id);
-
+            CAPTURE_ASSIGNATION(compiler, symbol, &ret.as.id, captureAssignation);
             newVariable(&ret.variable, symbol, compiler->scopeDepth == -1 ? SCOPE_MODULE : SCOPE_LOCAL);
             initVariable(compiler, &ret.variable);
         }
     } else if (match(compiler, SPREAD_OR_REST_TOKEN)) {
+        captureAssignation = captureImplicitAssignation(compiler);
         consume(compiler, ID_TOKEN, "Expected name after rest pattern");
         ret.type = REST_PATTERN;
         initToken(&ret.as.id, compiler->parser->previous.type, compiler->parser->previous.start,
@@ -1391,6 +1442,7 @@ static Pattern parsePattern(Compiler *compiler, PatternType parent, bool declare
                   compiler->parser->previous.line, compiler->parser->previous.value);
         if (declare) {
             int symbol = declareVariable(compiler, &ret.as.id);
+            CAPTURE_ASSIGNATION(compiler, symbol, &ret.as.id, captureAssignation);
             newVariable(&ret.variable, symbol, compiler->scopeDepth == -1 ? SCOPE_MODULE : SCOPE_LOCAL);
             initVariable(compiler, &ret.variable);
         }
@@ -1403,8 +1455,11 @@ static Pattern parsePattern(Compiler *compiler, PatternType parent, bool declare
             if (match(compiler, LBRACKET_TOKEN)) {
 
                 // possible key expression
-                int symbol = declareVariable(compiler, &ret.as.id);
-                newVariable(&ret.alias->variable, symbol, compiler->scopeDepth == -1 ? SCOPE_MODULE : SCOPE_LOCAL);
+                if(declare) {
+                    int symbol = declareVariable(compiler, &ret.as.id);
+                    CAPTURE_ASSIGNATION(compiler, symbol, &ret.as.id, captureAssignation);
+                    newVariable(&ret.alias->variable, symbol, compiler->scopeDepth == -1 ? SCOPE_MODULE : SCOPE_LOCAL);
+                }
                 // initVariable(compiler, &ret.variable);
                 expression(compiler);
                 consume(compiler, RBRACKET_TOKEN, "Expected ']' after object key expression");
@@ -1715,6 +1770,22 @@ static bool finishBlock(Compiler *compiler, bool expr) {
 // If [Compiler->isInitializer] is `true`, this is the body of a constructor
 // initializer. In that case, this adds the code to ensure it returns `this`.
 static void finishBody(Compiler *compiler) {
+    if(compiler->isInitializer && compiler->constructorsAssignments != NULL) {
+        // emit code to initiate field declared in constructor
+        ClassInfo *enclosingClass = getEnclosingClass(compiler);
+        for (int i = 0; i < compiler->constructorsAssignments->count; i++) {
+            Token token = compiler->constructorsAssignments->data[i];
+            if(token.type != ID_TOKEN) continue;
+            int field = MSCSymbolTableEnsure(compiler->parser->vm,&enclosingClass->fields, token.start,
+                (size_t) token.length);
+            emitOp(compiler, OP_LOAD_LOCAL_0 + 1 + i);
+            emitByteArg(compiler, OP_STORE_FIELD_THIS, field);
+            emitOp(compiler, OP_POP);
+        }
+        MSCFreeTokenBuffer(compiler->parser->vm, compiler->constructorsAssignments);
+        free(compiler->constructorsAssignments);
+        compiler->constructorsAssignments = NULL;
+    }
     bool isExpressionBody = finishBlock(compiler, false);
 
     if (compiler->isInitializer) {
@@ -2176,16 +2247,7 @@ static bool statement(Compiler *compiler, bool expr) {
 }
 
 
-// Walks the compiler chain to find the compiler for the nearest class
-// enclosing this one. Returns NULL if not currently inside a class definition.
-static Compiler *getEnclosingClassCompiler(Compiler *compiler) {
-    while (compiler != NULL) {
-        if (compiler->enclosingClass != NULL) return compiler;
-        compiler = compiler->parent;
-    }
 
-    return NULL;
-}
 
 // Emits the code to load [variable] onto the stack.
 static void loadVariable(Compiler *compiler, Variable *variable) {
@@ -2434,12 +2496,6 @@ static void finishArgumentList(Compiler *compiler, Signature *signature) {
 }
 
 
-// Walks the compiler chain to find the nearest class enclosing this one.
-// Returns NULL if not currently inside a class definition.
-static ClassInfo *getEnclosingClass(Compiler *compiler) {
-    compiler = getEnclosingClassCompiler(compiler);
-    return compiler == NULL ? NULL : compiler->enclosingClass;
-}
 
 static bool isPrivate(const char *name, int length) {
     return length > 1 && name[0] == '_';
@@ -3262,8 +3318,14 @@ void constructorSignature(Compiler *compiler, Signature *signature) {
 
     // Allow an empty parameter list.
     if (match(compiler, RPAREN_TOKEN)) return;
-
+    compiler->constructorsAssignments = malloc(sizeof(TokenBuffer));
+    MSCInitTokenBuffer(compiler->constructorsAssignments);
     finishParameterList(compiler, signature);
+    if(compiler->constructorsAssignments->count == 0) {
+        MSCFreeTokenBuffer(compiler->parser->vm, compiler->constructorsAssignments);
+        free(compiler->constructorsAssignments);
+        compiler->constructorsAssignments = NULL;
+    }
     consume(compiler, RPAREN_TOKEN, "Expect ')' after parameters.");
 }
 

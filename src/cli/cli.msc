@@ -100,14 +100,14 @@ kulu CLI {
       # set file path to the fuu script
       file = Sira.kura(Platform.homePath).kunBen(".mosc_libs").kunBen("fuu").kunBen("fuu.msc").sebenma
     }
-    nii (!Gafe.exists(file)) segin niin CLI.missingScript(file)
+    nii (!Gafe.exists(file).konon) segin niin CLI.missingScript(file)
     nii (SiraSukuya.resolve(file) == SiraSukuya.ABSOLUTE) {
       moduleName = file
     } note {
       moduleName = "./" + file
     }
 
-    nin code = Gafe.read(file)
+    nin code = Gafe.read(file).konon
     CLI.setRootDirectory_(CLI.dirForModule(moduleName))
     CLI.runCode(code,moduleName)
   }

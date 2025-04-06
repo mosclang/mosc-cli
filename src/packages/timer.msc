@@ -1,11 +1,21 @@
 kabo "scheduler" nani DogodaBaga
-
+kabo "lahidu" nani Lahidu
 kulu WaatiMassa {
   dialen sunogo(milliseconds) {
-    nii (!(milliseconds ye Diat)) Djuru.tike("Milliseconds must be a number.")
-    nii (milliseconds < 0) Djuru.tike("Milliseconds cannot be negative.")
+    # nii (!(milliseconds ye Diat)) Djuru.tike("Milliseconds must be a number.")
+    # nii (milliseconds < 0) Djuru.tike("Milliseconds cannot be negative.")
 
-    segin niin DogodaBaga.await_ { WaatiMassa.startTimer_(milliseconds, Djuru.sissanTa) }
+    # segin niin DogodaBaga.await_ { WaatiMassa.startTimer_(milliseconds, Djuru.sissanTa) }
+    segin niin WaatiMassa.sleep(milliseconds)
+  }
+  dialen sleep(ms) {
+    nii (!(ms ye Diat)) Djuru.tike("ms must be a number.")
+    nii (ms < 0) Djuru.tike("ms cannot be negative.")
+    segin niin Lahidu.kura {res, err => 
+      WaatiMassa.startTimer_(ms) { r =>
+        r.resolve(res, err)
+      }
+    }
   }
 
   dunan dialen startTimer_(milliseconds, fiber)

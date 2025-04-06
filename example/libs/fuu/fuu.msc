@@ -41,24 +41,27 @@ kulu LocalInstaller ye Installer {
     }
     copyFolder(folder, destination, recursive) {
         A.yira("Copying file $folder to $destination")
-        nii !Npalan.exists(folder) segin
+        nii !Npalan.exists(folder).konon segin
         nin sPath = Sira.kura(folder)
         nin destPath = Sira.kura(destination)
-        nii (Npalan.exists(destPath.sebenma)) {
+        nii (Npalan.exists(destPath.sebenma).konon) {
             nii !rimraf(destPath.sebenma) segin niin galon
         }
-        Npalan.create(destPath.sebenma)
-        nin content = Npalan.list(folder)
+        Npalan.create(destPath.sebenma).konon
+        nin content = Npalan.list(folder).konon
         nin ret = tien
         content.kelenkelen {dir =>
             nin dirPath = sPath.kunBen(dir).sebenma
-            nii (Gafe.exists(dirPath)) {
+            nii (Gafe.exists(dirPath).konon) {
                 nin targetPath = Sira.kura(destination).kunBen(dir).sebenma
                 ## case file, copy directly
+                A.yira("Copying file $targetPath")
                 Gafe.open(dirPath) { source =>
-                    Gafe.create(targetPath) { dest => dest.writeBytes(source.readBytes(source.size))}
+                    Gafe.create(targetPath) { dest => 
+                        dest.writeBytes(source.readBytes(source.size.konon).konon).konon
+                    }.konon
                     A.yira("File copied successfully to")
-                }
+                }.konon
             } note {
                 nii recursive ret = ret && ale.copyFolder(dirPath, destPath.kunBen(dir).sebenma, recursive)
             }
@@ -68,7 +71,7 @@ kulu LocalInstaller ye Installer {
     install() {
         A.yira("${Color.GREEN}Installing ${ale.name} form ${ale.source}${Color.RESET}")
         nin qualifiedSource = ale.source[7..-1]
-        nii (!Npalan.exists(qualifiedSource)) {
+        nii (!Npalan.exists(qualifiedSource).konon) {
             A.yira("${Color.WARN}File not found: at ${qualifiedSource}${Color.RESET}")
             segin niin galon;
         }
@@ -100,10 +103,10 @@ kulu Fuu {
         segin niin tien
     }
     ensureInstallation() {
-        nii (!Npalan.exists("mosc_libs")) Npalan.create("mosc_libs")
+        nii (!Npalan.exists("mosc_libs").konon) Npalan.create("mosc_libs").konon
         # find the `libs.json` in the current folder
         nin jsonPath = Sira.kura(Process.cwd).kunBen("./libs.json").sebenma
-        nii (!Gafe.exists(jsonPath)) {
+        nii (!Gafe.exists(jsonPath).konon) {
             A.yira("${Color.RED}Can't find lib.json${Color.RESET}")
             segin niin galon
         }
@@ -114,7 +117,9 @@ kulu Fuu {
         A.yira(jsonPath)
         nin ret
         nin try = Djuru.kura {
-            segin niin JSON.decode(Gafe.read(jsonPath))
+            nin json = Gafe.read(jsonPath).konon
+            # A.yira(json)
+            segin niin JSON.decode(json)
         }
         ret = try.aladie()
         A.yira(try.fili)
@@ -124,8 +129,8 @@ kulu Fuu {
         nin jsonPath = Sira.kura(Process.cwd).kunBen("./libs.json").sebenma
         nin try = Djuru.kura {
             Gafe.openWithFlags(jsonPath, GafeFlags.writeOnly|GafeFlags.truncate) { file =>
-                file.writeBytes(JSON.encode(v))
-            }
+                file.writeBytes(JSON.encode(v)).konon
+            }.konon
         }
         try.aladie()
         segin niin nii try.fili gansan note tien

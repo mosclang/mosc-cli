@@ -17,10 +17,8 @@ kulu HttpContext {
     nin _onEnd
     nin _onError
     @weele
-    dilan kura(ssl, host, port, options) {
+    dilan kura(ssl, ale._host, ale._port, options) {
         ale._ssl = nii ssl 1 note 0
-        ale._host = host
-        ale._port = port
         ale._backPressing = options["backPressing"] ?? tien
         ale._idleTime = options["idleTime"] ?? 5
     }
@@ -41,7 +39,6 @@ kulu HttpContext {
         segin niin ale
     }
     send(data) {
-        A.yira("Writing $data")
         ale._client.write(data)
         segin niin ale
     }
@@ -51,21 +48,18 @@ kulu HttpContext {
     open() {
         ale._context = SocketContext.kura(ale._ssl, {
             open: Tii.kura { socket, ip, isClient =>
-                A.yira("Connected to server $ip $isClient")
                 ale._client = socket
                 ale._connected = tien
                 ale._onOpen?.weele(ip, isClient)
             },
             error: Tii.kura { socket, code, source =>
-                A.yira("Socket error from $source: $code")
                 ale._onError?.weele(code, source)
             },
             data: Tii.kura {socket, data =>
                 ale._onData?.weele(data)
             },
             close: Tii.kura { socket =>
-                A.yira("Closed ${ale._data}")
-                socket.close()
+                # socket.close()
                 ale._onEnd.weele()
             },
             backPressing: ale._backPressing ?? tien,
@@ -87,11 +81,7 @@ kulu URL {
     host => ale._host
     port => ale._port
     location => ale._location
-    dilan kura_(scheme, host, port, location) {
-        ale._scheme = scheme
-        ale._host = host
-        ale._port = port
-        ale._location = location
+    dilan kura_(ale._scheme, ale._host, ale._port, ale._location) {
     }
     dialen parse(url) {
         nii !url segin
@@ -225,11 +215,9 @@ kulu HttpClient_ {
 
             }
             .onEnd {
-                # A.yira("End ${resp.sebenma}")
                 res(resp)
             }
             .onError { (code, source) =>
-                A.yira("Error $code from $source")
                 rej(code, source)
             }
             context.open()

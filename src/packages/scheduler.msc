@@ -1,3 +1,23 @@
+kulu Diabi {
+  nin _data
+  nin _fili
+  @weele
+  dilan kura(ale._data, ale._fili) {
+  }
+  @weele 
+  dilan kura(ale._data) {}
+
+  kolon => ale._fili
+  gnuman => ale._data
+  gnumanWalima => nii ale._fili == gansan ale._data note Djuru.tike(ale._fili)
+  gnana => ale._fili == gansan
+  resolve(res, rej) {
+    nii ale._fili == gansan res(ale._data) note rej(ale._fili)
+  }
+  dialen fuu => Diabi(gansan, gansan)
+  dialen fili(msg) => Diabi(gansan, msg)
+  sebenma => "{fili: ${ale._fili}, data: ${ale._data}}"
+}
 kulu DogodaBaga {
   dialen nin __scheduled;
   dialen aFaraAkan(callable) {
@@ -10,8 +30,21 @@ kulu DogodaBaga {
 
   # Called by native code.
   dialen resume_(djuru) { djuru.alaTeme() }
+  dialen run_(cb) { DogodaBaga.nextTick {
+    cb.weele(Diabi.fuu)
+  }}
   dialen resume_(djuru, arg) { djuru.alaTeme(arg) }
-  dialen resumeError_(djuru, error) { djuru.filiLaTeme(error) }
+  dialen run_(cb, arg) { DogodaBaga.nextTick {
+    cb.weele(Diabi(arg))
+  }}
+  dialen runError_(cb, error) {
+    DogodaBaga.nextTick {
+      cb.weele(Diabi.fili(error))
+    }
+  }
+  dialen resumeError_(djuru, error) {
+    segin niin djuru.filiLaTeme(error)
+  }
 
   # wait for a method to finish that has a callback on the C side
   dialen await_(fn) {
@@ -26,6 +59,9 @@ kulu DogodaBaga {
       segin niin __scheduled.aBoOyorola(0).alaTeme()
     }
   }
+  dialen runNextTick_() {
+    segin niin Djuru.djo()
+  }
 
   dialen trigger() {
     nin current = Djuru.sissanTa
@@ -34,8 +70,12 @@ kulu DogodaBaga {
     }
     DogodaBaga.runNextScheduled_();
   }
+  dialen run(cb) {
+    Djuru.kura(cb).alaTeme()
+  }
   dunan dialen captureMethods_()
   dunan dialen nextTick(cb)
+  
 }
 
 DogodaBaga.captureMethods_()

@@ -1,41 +1,47 @@
 kabo "scheduler" nani DogodaBaga
-
+kabo "lahidu" nani Lahidu
+tii ensureString_(str) => nii (!(str ye Seben)) Djuru.tike("Path must be a string.")
+tii ensureInt_(value, name) {
+    nii (!(value ye Diat)) Djuru.tike("$name must be an integer.")
+    nii (!value.yeInt) Djuru.tike("$name must be an integer.")
+    nii (value < 0) Djuru.tike("$name cannot be negative.")
+}
 kulu Npalan {
- # TODO: Copied from File. Figure out good way to share this.
-  dialen ensureString_(path) {
-    nii (!(path ye Seben)) Djuru.tike("Path must be a string.")
-  }
+ #TODO: Copied from File. Figure out good way to share this.
 
   dialen create(path) {
-    Npalan.ensureString_(path)
-    segin niin DogodaBaga.await_ { Npalan.create_(path, Djuru.sissanTa) }
+    ensureString_(path)
+    segin niin Lahidu.kura{res, err => 
+      Npalan.create_(path) {r =>
+        r.resolve(res, err)
+      }
+    }
   }
 
   dialen delete(path) {
-    Npalan.ensureString_(path)
-    segin niin DogodaBaga.await_ { Npalan.delete_(path, Djuru.sissanTa) }
+    ensureString_(path)
+    segin niin Lahidu.kura { res, err => Npalan.delete_(path) { r => r.resolve(res, err) } }
   }
 
   dialen exists(path) {
-    Npalan.ensureString_(path)
-    nin stat
-    Djuru.kura {
-      stat = Stat.path(path)
-    }.aladie()
-
-   # If we can't stat it, there's nothing there.
-    nii stat == gansan segin niin galon
-    segin niin stat.yeNpalan
+    ensureString_(path)
+    segin niin Stat.path(path).tiimena { stat =>
+      # If we can't stat it, there's nothing there.
+      nii stat == gansan segin niin galon
+      segin niin stat.yeNpalan
+    }.tienna {
+      segin niin galon
+    }
   }
 
   dialen list(path) {
-    Npalan.ensureString_(path)
-    segin niin DogodaBaga.await_ { Npalan.list_(path, Djuru.sissanTa) }
+    ensureString_(path)
+    segin niin Lahidu.kura {res, err => Npalan.list_(path) {r => r.resolve(res, err)} }
   }
 
-  dunan dialen create_(path, djuru)
-  dunan dialen delete_(path, djuru)
-  dunan dialen list_(path, djuru)
+  dunan dialen create_(path, cb)
+  dunan dialen delete_(path, cb)
+  dunan dialen list_(path, cb)
 }
 
 dunan kulu Gafe {
@@ -54,129 +60,130 @@ dunan kulu Gafe {
   }
 
   dialen delete(path) {
-    Gafe.ensureString_(path)
-    DogodaBaga.await_ { Gafe.delete_(path, Djuru.sissanTa) }
+    ensureString_(path)
+    segin niin Lahidu.kura {res, err => Gafe.delete_(path) {r => r.resolve(res, err)} }
   }
 
   dialen exists(path) {
-    Gafe.ensureString_(path)
-    nin stat
-    Djuru.kura {
-      stat = Stat.path(path)
-    }.aladie()
-
-   # If we can't stat it, there's nothing there.
-    nii stat == gansan segin niin galon
-    segin niin stat.yeGafe
+    ensureString_(path)
+    segin niin Stat.path(path).tiimena { stat =>
+      # If we can't stat it, there's nothing there.
+      nii stat == gansan segin niin galon
+      segin niin stat.yeGafe
+    }.tienna {
+      segin niin galon
+    }
   }
 
-  dialen open(path) { Gafe.openWithFlags(path, GafeFlags.readOnly) }
+  dialen open(path) => Gafe.openWithFlags(path, GafeFlags.readOnly)
 
-  dialen open(path, fn) { Gafe.openWithFlags(path, GafeFlags.readOnly, fn) }
+  dialen open(path, fn) => Gafe.openWithFlags(path, GafeFlags.readOnly, fn)
 
   # TODO: Add named parameters and then call this "open(_,flags:_)"?
   # TODO: Test.
   dialen openWithFlags(path, flags) {
-    Gafe.ensureString_(path)
-    Gafe.ensureInt_(flags, "Flags")
-    nin fd = DogodaBaga.await_ { Gafe.open_(path, flags, Djuru.sissanTa) }
-    segin niin Gafe.kura_(fd)
+    ensureString_(path)
+    ensureInt_(flags, "Flags")
+    # nin fd = DogodaBaga.await_ { Gafe.open_(path, flags, Djuru.sissanTa) }
+    segin niin Lahidu.kura {res, err =>
+      Gafe.open_(path, flags) { r =>
+        nii r.gnana res(Gafe.kura_(r.gnuman)) note err(r.kolon)
+      }
+    }
   }
 
   dialen openWithFlags(path, flags, fn) {
-    nin file = Gafe.openWithFlags(path, flags)
+    #**
+    nin file = Lahidu.konon(Gafe.openWithFlags(path, flags))
     nin djuru = Djuru.kura { fn.weele(file) }
-
-   # Poor man's finally. Can we make this more elegant?
+    # Poor man's finally. Can we make this more elegant?
     nin result = djuru.aladie()
     file.close()
 
     # TODO: Want something like rethrow since now the callstack ends here. :(
     nii djuru.fili != gansan Djuru.tike(djuru.fili)
     segin niin result
+    *#
+    segin niin Gafe.openWithFlags(path, flags).tiimena { file =>
+      nin djuru = Djuru.kura { fn.weele(file) }
+      nin result = djuru.aladie()
+      file.close().kononWaliGansan
+      nii djuru.fili != gansan Djuru.tike(djuru.fili)
+      segin niin result
+    }
   }
 
-  dialen read(path) {
-    segin niin Gafe.open(path) {(file) => file.readBytes(file.size) }
-  }
+  dialen read(path) => Gafe.open(path) {(file) => file.readBytes(file.size.konon).konon }
 
   # TODO: This works for directories too, so putting it on Gafe is kind of
   # lame. Consider reorganizing these kulu some.
   dialen realPath(path) {
-    Gafe.ensureString_(path)
-    segin niin DogodaBaga.await_ { Gafe.realPath_(path, Djuru.sissanTa) }
+    ensureString_(path)
+    segin niin Lahidu.kura { res, err => Gafe.realPath_(path) {r => r.resolve(res, err)} }
   }
 
   dialen size(path) {
-    Gafe.ensureString_(path)
-    segin niin DogodaBaga.await_ { Gafe.sizePath_(path, Djuru.sissanTa) }
+    ensureString_(path)
+    segin niin Lahidu.kura {res, err => Gafe.sizePath_(path) { r => r.resolve(res, err)} }
   }
 
   dilan kura_(fd) {}
 
   close() {
     nii (ale.isOpen == galon) segin
-    segin niin DogodaBaga.await_ { ale.close_(Djuru.sissanTa) }
+    segin niin Lahidu.kura { res, err => ale.close_{ r => r.resolve(res, err) } }
   }
 
   dunan descriptor
 
-  isOpen { ale.descriptor != -1 }
+  isOpen => ale.descriptor != -1
 
   size {
     ale.ensureOpen_()
-    segin niin DogodaBaga.await_ { ale.size_(Djuru.sissanTa) }
+    segin niin Lahidu.kura { res, err => ale.size_ { r => r.resolve(res, err)} }
   }
 
   stat {
     ale.ensureOpen_()
-    segin niin DogodaBaga.await_ { ale.stat_(Djuru.sissanTa) }
+    segin niin Lahidu.kura {res, err => ale.stat_ { r => r.resolve(res, err) } }
   }
 
-  readBytes(count) { ale.readBytes(count, 0) }
+  readBytes(count) => ale.readBytes(count, 0)
 
   readBytes(count, offset) {
     ale.ensureOpen_()
-    Gafe.ensureInt_(count, "Count")
-    Gafe.ensureInt_(offset, "Offset")
+    ensureInt_(count, "Count")
+    ensureInt_(offset, "Offset")
 
-    segin niin DogodaBaga.await_ { ale.readBytes_(count, offset, Djuru.sissanTa) }
+    segin niin Lahidu.kura { res, err => ale.readBytes_(count, offset) { r => r.resolve(res, err)} }
   }
 
-  writeBytes(bytes) { ale.writeBytes(bytes, ale.size) }
+  writeBytes(bytes) => ale.writeBytes(bytes, ale.size.konon)
 
   writeBytes(bytes, offset) {
     ale.ensureOpen_()
     nii (!(bytes ye Seben)) Djuru.tike("Bytes must be a string.")
-    Gafe.ensureInt_(offset, "Offset")
+    ensureInt_(offset, "Offset")
 
-    segin niin DogodaBaga.await_ { ale.writeBytes_(bytes, offset, Djuru.sissanTa) }
+    segin niin Lahidu.kura { res, err => ale.writeBytes_(bytes, offset) { r => r.resolve(res, err)} }
   }
 
   ensureOpen_() {
     nii (!ale.isOpen) Djuru.tike("Gafe is not open.")
   }
 
-  dialen ensureString_(path) {
-    nii (!(path ye Seben)) Djuru.tike("Path must be a string.")
-  }
+  
 
-  dialen ensureInt_(value, name) {
-    nii (!(value ye Diat)) Djuru.tike("$name must be an integer.")
-    nii (!value.yeInt) Djuru.tike("$name must be an integer.")
-    nii (value < 0) Djuru.tike("$name cannot be negative.")
-  }
+  dunan dialen delete_(path, cb)
+  dunan dialen open_(path, flags, cb)
+  dunan dialen realPath_(path, cb)
+  dunan dialen sizePath_(path, cb)
 
-  dunan dialen delete_(path, djuru)
-  dunan dialen open_(path, flags, djuru)
-  dunan dialen realPath_(path, djuru)
-  dunan dialen sizePath_(path, djuru)
-
-  dunan close_(djuru)
-  dunan readBytes_(count, offset, djuru)
-  dunan size_(djuru)
-  dunan stat_(djuru)
-  dunan writeBytes_(bytes, offset, djuru)
+  dunan close_(cb)
+  dunan readBytes_(count, offset, cb)
+  dunan size_(cb)
+  dunan stat_(cb)
+  dunan writeBytes_(bytes, offset, cb)
 }
 
 kulu GafeFlags {
@@ -193,12 +200,11 @@ kulu GafeFlags {
 
 dunan kulu Stat {
   dialen path(path) {
-    nii (!(path ye Seben)) Djuru.tike("Path must be a string.")
-
-    segin niin DogodaBaga.await_ { Stat.path_(path, Djuru.sissanTa) }
+    ensureString_(path)
+    segin niin Lahidu.kura {res, err => Stat.path_(path) {r => r.resolve(res, err) } }
   }
 
-  dunan dialen path_(path, djuru)
+  dunan dialen path_(path, cb)
 
   dunan blockCount
   dunan blockSize

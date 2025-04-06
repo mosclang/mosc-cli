@@ -25,6 +25,8 @@
         "locale": "c",
         "optional": "c",
         "ratio": "c",
-        "tuple": "c"
+        "tuple": "c",
+        "algorithm": "cpp",
+        "memory_resource": "cpp"
     }
 }

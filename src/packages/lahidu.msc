@@ -1,13 +1,114 @@
 kabo "scheduler" nani DogodaBaga
 
+tii Baa.kononWaliGansan => nii ale ye Lahidu ale.kononWaliGansan note ale
+
+
+kulu LahiduTiimena {
+    nin _fn
+    nin _error
+    nin _next
+    nin _value
+    nin _last
+    nin _fullfiled = galon
+    fullfiled => ale._fullfiled
+    fn => ale._fn
+    error => ale._error
+    next => ale._next
+    next = (n) {
+        ale._next = n
+    }
+    value => ale._value
+    @weele
+    dilan kura(fn, error) {
+        ale._fn = fn
+        ale._error = error
+        ale._last = ale
+    }
+    chain(fn, e) {
+        nin tmp = LahiduTiimena.kura(fn, e)
+        nin last = ale._last
+        last.next = tmp
+        ale._last = tmp
+        nii (last.fullfiled) {
+            DogodaBaga.nextTick {
+                last.next_(last.value, ale.error)
+            }
+        }
+        segin niin ale
+    }
+    fullfil(value) {
+        ale.fullfil(value, galon)
+    }
+    error(e) {
+        ale.fullfil(e, tien)
+    }
+    fullfil(value, error) {
+        nin err = error
+        nin v = value
+        # A.yira("Fullfil $err $v $ale")
+        nii (!ale._fullfiled && error == ale._error) {
+            # just call next with the saved value
+            nin th = Djuru.kura {
+                segin niin ale._fn.weele(value)
+            }
+            ale._value = th.aladie()
+            v = ale._value
+            ale._fullfiled = tien
+            err = th.fili != gansan
+        }
+        ale.next_(v, err)
+    }
+
+    next_(value) {
+        ale.next_(value, galon)
+    }
+    next_(value, e) {
+        # find next appropriate handler
+        nin handler = ale.nextHandler_(e)
+        nii (handler == gansan) {
+            nii (e) {
+                Djuru.tike(e)
+            }
+            segin
+        }
+        
+        nii e handler.error(value) note handler.fullfil(value)
+    }
+    nextHandler_(e) {
+        nin tmp = ale
+        foo (tmp) {
+            tmp = tmp.next
+            nii tmp && tmp.error == e segin niin tmp
+        }
+        segin niin gansan
+    }
+    sebenma => "{error: ${ale._error}, fulliled: ${ale._fullfiled}, value: ${ale._value}, next: ${ale._next}}"
+    dump {
+        nin tmp = ale
+        nin arr = [ale.sebenma]
+        foo (tmp.next) {
+            tmp = tmp.next
+            arr.aFaraAkan(tmp.sebenma)
+        }
+        segin niin arr
+    }
+}
 kulu Lahidu {
     nin _djuru
     nin _handler
-    nin _success = Tii.kura {}
-    nin _error = Tii.kura {}
+   
     nin _state = -1
     nin _resolvedValue
     nin _withError = galon
+    nin _callback = gansan
+    nin _success = Tii.kura { v =>
+
+        ale._callback?.fullfil(v)
+    }
+    nin _error = Tii.kura { e =>
+        ale._callback?.error(e)
+    }
+    @weele
     dilan kura(handler) {
         nii handler.arity != 2 Djuru.tike("Invalid Lahidu handler")
         ale._handler = handler
@@ -31,42 +132,67 @@ kulu Lahidu {
                 }
             }
         }
-        segin niin DogodaBaga.runNextScheduled_()
+
+        segin niin DogodaBaga.runNextTick_()
     }
     dialen tiime() { Lahidu.kura {(res, rej) => res.weele(gansan)} }
     dialen tiime(value) { Lahidu.kura {(res, rej) => res.weele(value)} }
 
     aladie_() {
+        nii ale._state == 0 segin niin galon;
         nii (ale._state == 1) {
             # fullfiled one
-            DogodaBaga.nextTick {
-               nii ale._withError ale._error.weele(ale._resolvedValue) note ale._success.weele(ale._resolvedValue)
-            }
-            segin
+            # DogodaBaga.nextTick {
+            #    nii ale._withError ale._error.weele(ale._resolvedValue) note ale._success.weele(ale._resolvedValue)
+            # }
+            segin niin tien # TODO:// returns new Lahidu
         }
-        nii ale._state == 0 segin;
         ale._state = 0
         DogodaBaga.nextTick {
-             ale._handler.weele(Tii.kura { v =>
+            nin th = Djuru.kura {
+                ale._handler.weele(Tii.kura { v =>
+                    ale._state = 1
+                    ale._resolvedValue = v
+                    ale._withError = galon
+                    ale._success.weele(v)
+                   
+                }, Tii.kura { e =>
+                    ale._state = 1
+                    ale._resolvedValue = e
+                    ale._withError = tien
+                    ale._error.weele(e)
+                    
+                })
+            }
+            th.aladie();
+            nii (th.fili) {
                 ale._state = 1
-                ale._resolvedValue = v
-                ale._withError = galon
-                ale._success.weele(v)
-             }, Tii.kura { e =>
-                ale._state = 1
-                ale._resolvedValue = e
+                ale._resolvedValue = th.fili
                 ale._withError = tien
-                ale._error.weele(e)
-             })
+                ale._error.weele(th.fili)
+                
+            }
         }
-
+        segin niin galon
     }
     tiimena(fn) {
-        ale._success = fn
+        # ale._success = fn
+        nii ale._callback == gansan ale._callback = LahiduTiimena.kura(fn, galon) note ale._callback.chain(fn, galon)
         ale.aladie_()
+        # A.yira(ale._callback.dump)
+        segin niin ale;
     }
     tienna(fn) {
-        ale._error = fn
+        nii ale._callback == gansan ale._callback = LahiduTiimena.kura(fn, tien) note ale._callback.chain(fn, tien)
         ale.aladie_()
+        segin niin ale;
+    }
+    konon => Lahidu.konon(ale)
+    kononWaliGansan {
+        nin res
+        Djuru.kura {
+            res = Lahidu.konon(ale)
+        }.aladie()
+        segin niin res
     }
 }

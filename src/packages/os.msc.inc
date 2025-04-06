@@ -2,6 +2,7 @@
 static const char* osModuleSource =
 "kabo \"scheduler\" nani DogodaBaga\n"
 "kabo \"ensure\" nani Ensure\n"
+"kabo \"lahidu\" nani Lahidu\n"
 "\n"
 "kulu Platform {\n"
 "  dunan dialen homePath\n"
@@ -47,7 +48,7 @@ static const char* osModuleSource =
 "    } note {\n"
 "      Djuru.tike(\"environment vars must be passed as a Wala\")\n"
 "    }\n"
-"    segin niin DogodaBaga.await_ { Process.exec_(cmd, args, cwd, env, Djuru.sissanTa) }\n"
+"    segin niin Lahidu.kura { res, err => Process.exec_(cmd, args, cwd, env) { r => r.resolve(res, err) } }\n"
 "  }\n"
 "\n"
 "  dialen chdir(dir) {\n"

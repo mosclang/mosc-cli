@@ -1,5 +1,6 @@
 kabo "scheduler" nani DogodaBaga
 kabo "ensure" nani Ensure
+kabo "lahidu" nani Lahidu
 
 kulu Platform {
   dunan dialen homePath
@@ -45,7 +46,7 @@ kulu Process {
     } note {
       Djuru.tike("environment vars must be passed as a Wala")
     }
-    segin niin DogodaBaga.await_ { Process.exec_(cmd, args, cwd, env, Djuru.sissanTa) }
+    segin niin Lahidu.kura { res, err => Process.exec_(cmd, args, cwd, env) { r => r.resolve(res, err) } }
   }
 
   dialen chdir(dir) {

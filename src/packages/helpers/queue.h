@@ -71,6 +71,39 @@ Queue *initQueue(int max, void *(*copy)(const void *), void (*destroy)(const voi
     q->size = 0;
     return q;
 }
+void queueReset(Queue* q) {
+    q->front = 0;
+    q->rear = -1;
+    q->size = 0;
+}
+Queue *copyQueue(Queue* other) {
+    Queue *q = (Queue *) malloc(sizeof(Queue));
+    q->data = (void **) malloc(sizeof(*q->data) * other->size);
+    q->rear = -1;
+    q->capacity = other->size;
+    q->copy = other->copy;
+    q->destroy = other->destroy;
+    q->size = 0;
+    q->front = 0;
+    for(int i = 0; i < other->size; i++) {
+        q->data[i] = other->data[i + other->front];
+        q->rear++;
+        q->size++;
+    }
+    return q;
+}
+Queue *quickCopyQueue(Queue* other) {
+    Queue *q = (Queue *) malloc(sizeof(Queue));
+    q->data = (void **) malloc(sizeof(*q->data) * (other->capacity));
+    memcpy(q->data, other->data + other->front, sizeof(void *) * other->size);
+    q->rear = other->size - 1;
+    q->capacity = other->size;
+    q->copy = other->copy;
+    q->destroy = other->destroy;
+    q->size = other->size;
+    q->front = 0;
+    return q;
+}
 
 
 #endif //MOSCC_QUEUE_H

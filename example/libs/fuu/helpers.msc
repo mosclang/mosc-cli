@@ -5,17 +5,17 @@ kabo "lahidu" nani Lahidu
 tii rm_(folder) {
     segin niin Lahidu.kura {res, rej =>
         nin djuru = Djuru.kura {
-            nin stat = Stat.path(folder)
+            nin stat = Stat.path(folder).konon
             nii (stat.yeNpalan){
-                nii (Npalan.list(folder).laKolon){
-                 Npalan.delete(folder)
+                nii (Npalan.list(folder).konon.laKolon){
+                 Npalan.delete(folder).konon
                  segin niin res.weele(tien)
                 } note {
                   segin niin res.weele(rimraf(folder))
                 }
             }
             nii (stat.yeGafe) {
-                Gafe.delete(folder)
+                Gafe.delete(folder).konon
                 segin niin res.weele(tien)
             }
             segin niin res.weele(galon)
@@ -29,10 +29,10 @@ tii rm_(folder) {
 
 }
 tii rimraf(folder) {
-    nii !Npalan.exists(folder) segin niin galon
+    nii !Npalan.exists(folder).konon segin niin galon
     nin ret = tien
     nin promises = []
-    nin children = Npalan.list(folder)
+    nin children = Npalan.list(folder).konon
     children.kelenkelen { it =>
         ret = ret && promises.aFaraAkan(rm_(Sira.kura(folder).kunBen(it).sebenma))
     }

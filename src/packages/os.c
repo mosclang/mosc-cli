@@ -164,9 +164,9 @@ static void processOnExit(uv_process_t* req, int64_t exit_status, int term_signa
     free(data->options.stdio);
     free((void*)data);
 
-    schedulerResume(fiber, true);
+    schedulerRun(fiber, true);
     MSCSetSlotDouble(getCurrentThread(), 2, (double)exit_status);
-    schedulerFinishResume();
+    schedulerFinishRun();
 }
 
 void processExit(Djuru* djuru) {

@@ -15,10 +15,13 @@
 // on the stack and then call [schedulerFinishResume] to complete the call.
 //
 // Otherwise, the call resumes immediately. Releases [fiber] when called.
-void schedulerResume(MSCHandle* fiber, bool hasArgument);
+// void schedulerResume(MSCHandle* fiber, bool hasArgument);
+void schedulerRun(MSCHandle* cb, bool hasArgument);
 
-void schedulerFinishResume();
-void schedulerResumeError(MSCHandle* fiber, const char* error);
+void schedulerFinishRun();
+//void schedulerFinishResume();
+// void schedulerResumeError(MSCHandle* fiber, const char* error);
+void schedulerRunError(MSCHandle* fiber, const char* error);
 
 void schedulerShutdown();
 

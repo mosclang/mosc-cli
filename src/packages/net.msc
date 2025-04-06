@@ -2,6 +2,7 @@ kabo "scheduler" nani DogodaBaga
 kabo "io" nani Stdin
 kabo "repl" nani Chars
 kabo "json" nani JSON
+kabo "lahidu" nani Lahidu
 
 dunan kulu UVSocket {
   dilan kura(options) {}
@@ -61,13 +62,19 @@ kulu SocketContext {
         open: Tii.kura { native, ip, isClient =>
             nin socket = Socket.kura(native, ale)
             socket.timeout(ale.idleTime)
-            ale.options["open"]?.weele(socket, ip, isClient)
+            DogodaBaga.run {
+                ale.options["open"]?.weele(socket, ip, isClient)
+            }
         },
         close: Tii.kura { native =>
-            ale.options["close"]?.weele(Socket.kura(native, ale))
+            DogodaBaga.run {
+                ale.options["close"]?.weele(Socket.kura(native, ale))
+            }
         },
         error: Tii.kura { native, code, source =>
-            ale.options["error"]?.weele(Socket.kura(native, ale), code, source)
+            DogodaBaga.run {
+                ale.options["error"]?.weele(Socket.kura(native, ale), code, source)
+            }
         },
         writable: Tii.kura { native =>
             nin socket = Socket.kura(native, ale)
@@ -75,16 +82,24 @@ kulu SocketContext {
                 ale.backPress(socket)
             }
             socket.timeout(ale.idleTime)
-            ale.options["writable"]?.weele(socket)
+            DogodaBaga.run {
+                ale.options["writable"]?.weele(socket)
+            }
         },
         end: Tii.kura { native =>
-            ale.options["end"]?.weele(Socket.kura(native, ale))
+            DogodaBaga.run {
+                ale.options["end"]?.weele(Socket.kura(native, ale))
+            }
         },
         data: Tii.kura { native, data =>
-            ale.options["data"]?.weele(Socket.kura(native, ale), data)
+            DogodaBaga.run {
+                ale.options["data"]?.weele(Socket.kura(native, ale), data)
+            }
         },
         serverName: Tii.kura { name =>
-            ale.options["serverName"]?.weele(name)
+            DogodaBaga.run {
+                ale.options["serverName"]?.weele(name)
+            }
         }
     })
     ale.backPressing = options["backPressing"] ?? galon
@@ -221,7 +236,7 @@ kulu HttpRequest {
     dilan kura_(reqRes) {
         ale._req = reqRes
     }
-    body {  DogodaBaga.await_ { ale._req.body_(Djuru.sissanTa) } }
+    body  =>  Lahidu.kura { res, err => ale._req.body_ { r => r.resolve(res, err) } }
     url { ale._req.url_ }
     fullUrl { ale._req.fullUrl_ }
     method { ale._req.method_ }
@@ -403,9 +418,8 @@ kulu Util {
         segin niin Util.resolveName(host, gansan)
     }
     dialen resolveName(host, service) {
-        nin d = Djuru.sissanTa
-        segin niin DogodaBaga.await_ { Util.resolveName(host, service) { dns =>
-            DogodaBaga.resume_(d, dns)
+        segin niin Lahidu.kura { res, err => Util.resolveName(host, service) { dns =>
+            res(dns)
         }}
     }
 }

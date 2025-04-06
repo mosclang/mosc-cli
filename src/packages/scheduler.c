@@ -22,8 +22,11 @@ static MSCHandle *schedulerClass;
 // operation. The first resumes it with zero arguments, and the second passes
 // one.
 static MSCHandle *resume1;
+static MSCHandle *run1;
 static MSCHandle *resume2;
+static MSCHandle *run2;
 static MSCHandle *resumeError;
+static MSCHandle *runError;
 
 static void resume(MSCHandle *method) {
     MSCInterpretResult result = MSCCall(getCurrentThread(), method);
@@ -43,30 +46,53 @@ void schedulerCaptureMethods(Djuru *djuru) {
 
     resume1 = MSCMakeCallHandle(djuru->vm, "resume_(_)");
     resume2 = MSCMakeCallHandle(djuru->vm, "resume_(_,_)");
+    
+    run1 = MSCMakeCallHandle(djuru->vm, "run_(_)");
+    run2 = MSCMakeCallHandle(djuru->vm, "run_(_,_)");
     resumeError = MSCMakeCallHandle(djuru->vm, "resumeError_(_,_)");
+    runError = MSCMakeCallHandle(djuru->vm, "runError_(_,_)");
 }
 
 
-void schedulerResume(MSCHandle *fiber, bool hasArgument) {
+// void schedulerResume(MSCHandle *fiber, bool hasArgument) {
+//     Djuru *djuru = getCurrentThread();
+//     MSCEnsureSlots(djuru, 2 + (hasArgument ? 1 : 0));
+//     MSCSetSlotHandle(djuru, 0, schedulerClass);
+//     MSCSetSlotHandle(djuru, 1, fiber);
+//     MSCReleaseHandle(djuru->vm, fiber);
+
+//     // If we don't need to wait for an argument to be stored on the stack, resume
+//     // it now.
+//     if (!hasArgument) resume(resume1);
+// }
+void schedulerRun(MSCHandle *cb, bool hasArgument) {
     Djuru *djuru = getCurrentThread();
     MSCEnsureSlots(djuru, 2 + (hasArgument ? 1 : 0));
     MSCSetSlotHandle(djuru, 0, schedulerClass);
-    MSCSetSlotHandle(djuru, 1, fiber);
-    MSCReleaseHandle(djuru->vm, fiber);
+    MSCSetSlotHandle(djuru, 1, cb);
+    MSCReleaseHandle(djuru->vm, cb);
 
     // If we don't need to wait for an argument to be stored on the stack, resume
     // it now.
-    if (!hasArgument) resume(resume1);
+    if (!hasArgument) resume(run1);
 }
 
-void schedulerFinishResume() {
-    resume(resume2);
+// void schedulerFinishResume() {
+//     resume(resume2);
+// }
+void schedulerFinishRun() {
+    resume(run2);
 }
 
-void schedulerResumeError(MSCHandle *fiber, const char *error) {
-    schedulerResume(fiber, true);
+// void schedulerResumeError(MSCHandle *fiber, const char *error) {
+//     schedulerResume(fiber, true);
+//     MSCSetSlotString(getCurrentThread(), 2, error);
+//     resume(resumeError);
+// }
+void schedulerRunError(MSCHandle *cb, const char *error) {
+    schedulerRun(cb, true);
     MSCSetSlotString(getCurrentThread(), 2, error);
-    resume(resumeError);
+    resume(runError);
 }
 
 void schedulerShutdown() {
@@ -77,7 +103,10 @@ void schedulerShutdown() {
     MSCReleaseHandle(djuru->vm, schedulerClass);
     MSCReleaseHandle(djuru->vm, resume1);
     MSCReleaseHandle(djuru->vm, resume2);
+    MSCReleaseHandle(djuru->vm, run1);
+    MSCReleaseHandle(djuru->vm, run2);
     MSCReleaseHandle(djuru->vm, resumeError);
+    MSCReleaseHandle(djuru->vm, runError);
 }
 
 void scheduleNextTick(Djuru *djuru) {

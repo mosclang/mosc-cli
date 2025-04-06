@@ -82,7 +82,7 @@ static bool handleRequestError(uv_fs_t *request) {
     uv_fs_req_cleanup(request);
     free(request);
 
-    schedulerResumeError(fiber, uv_strerror(error));
+    schedulerRunError(fiber, uv_strerror(error));
     return true;
 }
 
@@ -125,8 +125,8 @@ static void directoryListCallback(uv_fs_t *request) {
         MSCInsertInList(djuru, 2, -1, 1);
     }
 
-    schedulerResume(freeRequest(request), true);
-    schedulerFinishResume();
+    schedulerRun(freeRequest(request), true);
+    schedulerFinishRun();
 }
 
 void directoryList(Djuru *djuru) {
@@ -135,13 +135,13 @@ void directoryList(Djuru *djuru) {
     uv_fs_t *request = createRequest(fiber);
 
     int error = uv_fs_scandir(getLoop(), request, path, 0, directoryListCallback);
-    if (error != 0) schedulerResumeError(fiber, uv_strerror(error));
+    if (error != 0) schedulerRunError(fiber, uv_strerror(error));
 }
 
 void fileDirectoryCallback(uv_fs_t *request) {
     if (handleRequestError(request)) return;
 
-    schedulerResume(freeRequest(request), false);
+    schedulerRun(freeRequest(request), false);
 }
 
 void directoryCreate(Djuru *djuru) {
@@ -176,7 +176,7 @@ void fileFinalize(void *data) {
 
 static void fileDeleteCallback(uv_fs_t *request) {
     if (handleRequestError(request)) return;
-    schedulerResume(freeRequest(request), false);
+    schedulerRun(freeRequest(request), false);
 }
 
 void fileDelete(Djuru *djuru) {
@@ -185,16 +185,16 @@ void fileDelete(Djuru *djuru) {
     uv_fs_t *request = createRequest(fiber);
 
     int error = uv_fs_unlink(getLoop(), request, path, fileDeleteCallback);
-    if (error != 0) schedulerResumeError(fiber, uv_strerror(error));
+    if (error != 0) schedulerRunError(fiber, uv_strerror(error));
 }
 
 static void fileOpenCallback(uv_fs_t *request) {
     if (handleRequestError(request)) return;
 
     double fd = (double) request->result;
-    schedulerResume(freeRequest(request), true);
+    schedulerRun(freeRequest(request), true);
     MSCSetSlotDouble(getCurrentThread(), 2, fd);
-    schedulerFinishResume();
+    schedulerFinishRun();
 }
 
 // The UNIX file flags have specified names but not values. So we define our
@@ -229,9 +229,9 @@ static void fileSizeCallback(uv_fs_t *request) {
     if (handleRequestError(request)) return;
 
     double size = (double) request->statbuf.st_size;
-    schedulerResume(freeRequest(request), true);
+    schedulerRun(freeRequest(request), true);
     MSCSetSlotDouble(getCurrentThread(), 2, size);
-    schedulerFinishResume();
+    schedulerFinishRun();
 }
 
 void fileSizePath(Djuru *djuru) {
@@ -243,7 +243,7 @@ void fileSizePath(Djuru *djuru) {
 static void fileCloseCallback(uv_fs_t *request) {
     if (handleRequestError(request)) return;
 
-    schedulerResume(freeRequest(request), false);
+    schedulerRun(freeRequest(request), false);
 }
 
 void fileClose(Djuru *djuru) {
@@ -280,9 +280,9 @@ static void fileReadBytesCallback(uv_fs_t *request) {
     // TODO: Having to copy the bytes here is a drag. It would be good if Mosc's
     // embedding API supported a way to *give* it bytes that were previously
     // allocated using Mosc's own allocator.
-    schedulerResume(freeRequest(request), true);
+    schedulerRun(freeRequest(request), true);
     MSCSetSlotBytes(getCurrentThread(), 2, buffer.base, count);
-    schedulerFinishResume();
+    schedulerFinishRun();
 
     // TODO: Likewise, freeing this after we resume is lame.
     free(buffer.base);
@@ -310,8 +310,8 @@ static void realPathCallback(uv_fs_t *request) {
 
     MSCEnsureSlots(getCurrentThread(), 3);
     MSCSetSlotString(getCurrentThread(), 2, (char *) request->ptr);
-    schedulerResume(freeRequest(request), true);
-    schedulerFinishResume();
+    schedulerRun(freeRequest(request), true);
+    schedulerFinishRun();
 }
 
 void fileRealPath(Djuru *djuru) {
@@ -341,8 +341,8 @@ static void statCallback(uv_fs_t *request) {
     uv_stat_t *data = (uv_stat_t *) MSCGetSlotExtern(djuru, 2);
     *data = request->statbuf;
 
-    schedulerResume(freeRequest(request), true);
-    schedulerFinishResume();
+    schedulerRun(freeRequest(request), true);
+    schedulerFinishRun();
 }
 
 void fileStat(Djuru *djuru) {
@@ -364,7 +364,7 @@ static void fileWriteBytesCallback(uv_fs_t *request) {
     FileRequestData *data = (FileRequestData *) request->data;
     free(data->buffer.base);
 
-    schedulerResume(freeRequest(request), false);
+    schedulerRun(freeRequest(request), false);
 }
 
 void fileWriteBytes(Djuru *djuru) {

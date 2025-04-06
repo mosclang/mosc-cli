@@ -200,8 +200,8 @@ static void uwsOnData(uws_res_t *res, const char *chunk, size_t chunk_length, bo
         }
         MSCHandle *handler = parser->handler;
         free(parser);
-        schedulerResume(handler, true);
-        schedulerFinishResume();
+        schedulerRun(handler, true);
+        schedulerFinishRun();
     } else {
         parser->body = byteArrayListAppend(parser->body, chunk, chunk_length);
     }
@@ -1693,8 +1693,9 @@ void socketDestroy(void *handle) {
         MSCReleaseHandle(vm, wrapper->ref);
         wrapper->ref = NULL;
     }
-    if (!wrapper->closed) {
-        us_socket_close(wrapper->ssl, wrapper->socket, 0, NULL);
+    if (!wrapper->closed && !us_socket_is_closed(wrapper->ssl, wrapper->socket)) {
+        wrapper->closed = true;
+        // us_socket_fr(wrapper->ssl, wrapper->socket, 0, NULL);
     }
     us_socket_shutdown(wrapper->ssl, wrapper->socket);
 }
@@ -1735,7 +1736,7 @@ void socketContextConnect(Djuru *djuru) {
 
 void socketContextClose(Djuru *djuru) {
     SocketContext *context = (SocketContext *) MSCGetSlotExtern(djuru, 0);
-    msc_socket_context_close(context->ssl, context->context);
+    us_socket_context_close(context->ssl, context->context);
     context->closed = true;
 
 }

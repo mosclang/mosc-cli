@@ -4,24 +4,62 @@ kabo "lahidu" nani Lahidu
 kabo "nafamaw" nani Buffer
 kabo "timer" nani WaatiMassa
 
-# client.get("https://mosclang.com/mosc_logo.png").tiimena { res =>
-#     nin th = Djuru.kura {
-#         Gafe.openWithFlags("image.png", GafeFlags.writeOnly|GafeFlags.truncate) {file =>
-#             file.writeBytes(res.body.data)
-#         }
+client.get("https://mosclang.com/mosc_logo.png").tiimena { res =>
+    A.yira("Success $res")
+    Gafe.openWithFlags("logo.png", GafeFlags.writeOnly|GafeFlags.create) {file =>
+        A.yira("hey:::: $file")
+        file.writeBytes(res.body.data).konon
+    }
+    A.yira("Res: ${res.body.data.bytes}")
+}.tienna {e =>
+    A.yira(e)
+}
+
+# Lahidu.tiime("Hello").tiimena { r =>
+#      Gafe.openWithFlags("test.txt", GafeFlags.writeOnly|GafeFlags.create) {file =>
+#         file.writeBytes(r)
 #     }
-#     th.aladie();
-#     A.yira(th.fili)
-#     A.yira("Res: ${res.body.data.bytes}")
 # }
 
-Lahidu.tiime("Hello").tiimena { res =>
-    A.yira("First")
-    WaatiMassa.sunogo(5000)
-    Lahidu.tiime().tiimena { res =>
-        A.yira("Second")
-    }
-}
+# nin p = Lahidu.kura {res, rej =>
+#     A.yira("mmm")
+#     # WaatiMassa.sunogo(1000)
+#     # Djuru.tike("Haaaa")
+#     res("Done")
+# }
+# tii timer(s) => Lahidu.kura {res, rej => 
+#     Lahidu.konon(WaatiMassa.sleep(s))
+#     res(gansan);
+# }
+# Lahidu.tiime("Hello").tiimena { res =>
+#     A.yira("First")
+#     # A.yira(Lahidu.konon(p))
+#     p.tiimena { res =>
+#         Lahidu.konon(timer(1000))
+#         A.yira(res)
+#         segin niin "$res::$res"
+#     }.tiimena {v =>
+#         A.yira(v)
+#         Djuru.tike("Magni")
+#         segin niin v
+#     }.tienna { e =>
+#         A.yira("E:: $e")
+        
+#         segin niin e
+#     }.tiimena {v =>
+#         A.yira(v)
+#         segin niin v
+#     }
+#     A.yira("Second")
+# }
+# A.yira("Hiiii")
+
+
+
+
+
+
+
 # A.yira(((Buffer.from("Molobala"))[0...8]))
 # A.yira(client.version)
 # A.seben(">>>")

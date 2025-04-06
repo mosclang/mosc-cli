@@ -277,9 +277,12 @@ static void deferCb(void *userData) {
 
 void microtaskAsyncCb(uv_async_t *handle) {
     uv_mutex_lock(microtaskMutex);
-
-    while (!queueIsEmpty(microtaskQueue)) {
-        MSCHandle *task = queueTake(microtaskQueue);
+    Queue* tmp = quickCopyQueue(microtaskQueue);
+    queueReset(microtaskQueue);
+    uv_mutex_unlock(microtaskMutex);
+    // printf("Processing Async::: %d\n", tmp->size);
+    while (!queueIsEmpty(tmp)) {
+        MSCHandle *task = queueTake(tmp);
         Djuru *djuru = getCurrentThread();
         MSCEnsureSlots(djuru, 1);
         MSCSetSlotHandle(djuru, 0, task);
@@ -289,9 +292,9 @@ void microtaskAsyncCb(uv_async_t *handle) {
         MSCCall(djuru, fnCall0);
         MSCReleaseHandle(getVM(), task);
     }
-    // printf("Done Processing Async::: \n");
-    // uv_unref((uv_handle_t *) microtaskAsync);
-    uv_mutex_unlock(microtaskMutex);
+    if(queueIsEmpty(microtaskQueue)) {
+        uv_unref((uv_handle_t *) microtaskAsync);
+    }
 }
 
 void enqueueMicrotask(MSCHandle *callback) {
@@ -300,7 +303,11 @@ void enqueueMicrotask(MSCHandle *callback) {
     uv_mutex_unlock(microtaskMutex);
     // uv_ref((uv_handle_t *) microtaskAsync);
     // printf("Sending Async::: \n");
-    uv_async_send(microtaskAsync);
+    int id = uv_async_send(microtaskAsync);
+    // printf("Sending Async::: %x = %d \n", callback, id);
+    if(!queueIsEmpty(microtaskQueue)) {
+        uv_ref((uv_handle_t *) microtaskAsync);
+    }
 }
 
 void *copyHandle(const void *item) {
@@ -440,7 +447,7 @@ MSCInterpretResult runCLI() {
     microtaskAsync = malloc(sizeof(uv_async_t));
     uv_mutex_init(microtaskMutex);
     uv_async_init(loop, microtaskAsync, microtaskAsyncCb);
-    uv_unref((uv_handle_t *) microtaskAsync);
+    //uv_unref((uv_handle_t *) microtaskAsync);
     MSCInterpretResult result = MSCInterpret(vm, "<cli>", "kabo \"cli\" nani CLI");
     if (result == RESULT_SUCCESS) { result = MSCInterpret(vm, "<cli>", "CLI.start()"); }
     if (result == RESULT_SUCCESS) {
