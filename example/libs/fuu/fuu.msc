@@ -1,9 +1,38 @@
 kabo "io" nani Npalan, Gafe, GafeFlags
 kabo "os" nani Process, Platform
 kabo "json" nani JSON
-kabo "./helpers" nani rimraf
+kabo "./helpers" nani rimraf, copyFolder
 kabo "./sira" nani Sira
 
+kulu Executor {
+    nin _jobs = []
+    @weele
+    dilan kura() {
+    }
+    add(cmd, args) => ale.add(cmd, args, gansan)
+    add(cmd, args, path) {
+        ale._jobs.aFaraAkan([cmd, args, path])
+        segin niin ale
+    }
+    execute(cmd, args) => ale.execute(cmd, args, gansan)
+    execute(cmd, args, cwd) {
+        A.yira(" - [R] ${cmd} " + args.kunBen(" "))
+        segin niin Process.exec(cmd, args, cwd)
+    }
+    run() {
+        nin th = Djuru.kura {
+            ale._jobs.kelenkelen { job =>
+                A.yira("Executing: ${job}")
+                nin r = ale.execute(job[0], job[1], job[2]).konon
+                nii (r != 0) {
+                    Djuru.tike(" - FAILED (got error code ${r})")
+                }
+            }
+        }
+        th.aladie()
+        segin niin th.fili == gansan
+    }
+}
 kulu Color {
   # dialen GREEN { "\u001b[32m" }
   dialen GREEN { "\u001b[38;5;46m" }
@@ -17,58 +46,65 @@ kulu Installer {
     nin name
     nin source
     nin root
-    dilan kura(name, root, source) {
-        ale.name = name
-        ale.source = source
-        ale.root = root
+    dilan kura(ale.name, ale.root, ale.source) {
     }
     dialen instanceFor(name, root, source) {
         A.yira("Installer instance for $source")
         segin niin nii source.beDamineNiin("file://") LocalInstaller.kura(name, root, source) note GitInstaller.kura(name, root, source)
     }
+    isInstalled {
+        nin path = Sira.kura(ale.root).kunBen(ale.name).sebenma
+        nii (Npalan.exists(path).konon) {
+            A.yira("${Color.GREEN}Dependency ${ale.name} already installed at ${path}${Color.RESET}")
+            segin niin tien
+        }
+        # A.yira("${Color.RED}Dependency ${ale.name} not installed at ${path}${Color.RESET}")
+        segin niin galon
+    }
 }
 kulu GitInstaller ye Installer {
+    nin yelema
     dilan kura(name, root, source) {
         faa(name, root, source)
+        ale.yelema = nii (source.bAkono("@")) {
+            source.faraFara("@")[-1]
+        } note gansan
     }
+    fullLocation => nii ale.source.beDamineNiin("https://") ale.qualifiedSource note "https://github.com/${ale.qualifiedSource}.git"
+    
+    qualifiedSource {
+        nin els = ale.source.faraFara("@")
+        nii els.hakan == 1 segin niin ale.source
+        segin niin els[0..els.hakan-2].kunBen("@")
+    }
+ 
     install() {
-        segin niin galon
+        nii (ale.isInstalled) {
+            segin niin galon
+        }
+        nin qualifiedName = ale.name
+        A.yira("${Color.GREEN}Installing ${qualifiedName} form ${ale.fullLocation}${Color.RESET}")
+         nin executor = Executor().add("git", ["clone", "-q", ale.fullLocation, Sira.kura(ale.root).kunBen(qualifiedName).sebenma])
+            nii ale.yelema executor.add("git",["checkout", "--detach", ale.yelema], "${ale.root}/${qualifiedName}")
+            nin result =  executor.run()
+        nii (!result) {
+            A.yira("${Color.RED}Could not install dependency ${qualifiedName} from ${ale.fullLocation}${Color.RESET}")
+            A.yira("* Please check the source url and make sure you have git installed and available in your PATH.")
+            segin niin galon
+        }
+        A.yira("${Color.GREEN}Dependency ${ale.name} installed successfully${Color.RESET}")
+        segin niin tien
     }
 }
 kulu LocalInstaller ye Installer {
     dilan kura(name, root, source) {
         faa(name, root, source)
     }
-    copyFolder(folder, destination, recursive) {
-        A.yira("Copying file $folder to $destination")
-        nii !Npalan.exists(folder).konon segin
-        nin sPath = Sira.kura(folder)
-        nin destPath = Sira.kura(destination)
-        nii (Npalan.exists(destPath.sebenma).konon) {
-            nii !rimraf(destPath.sebenma) segin niin galon
-        }
-        Npalan.create(destPath.sebenma).konon
-        nin content = Npalan.list(folder).konon
-        nin ret = tien
-        content.kelenkelen {dir =>
-            nin dirPath = sPath.kunBen(dir).sebenma
-            nii (Gafe.exists(dirPath).konon) {
-                nin targetPath = Sira.kura(destination).kunBen(dir).sebenma
-                ## case file, copy directly
-                A.yira("Copying file $targetPath")
-                Gafe.open(dirPath) { source =>
-                    Gafe.create(targetPath) { dest => 
-                        dest.writeBytes(source.readBytes(source.size.konon).konon).konon
-                    }.konon
-                    A.yira("File copied successfully to")
-                }.konon
-            } note {
-                nii recursive ret = ret && ale.copyFolder(dirPath, destPath.kunBen(dir).sebenma, recursive)
-            }
-        }
-        segin niin ret
-    }
+    
     install() {
+        nii (ale.isInstalled) {
+            segin niin galon
+        }
         A.yira("${Color.GREEN}Installing ${ale.name} form ${ale.source}${Color.RESET}")
         nin qualifiedSource = ale.source[7..-1]
         nii (!Npalan.exists(qualifiedSource).konon) {
@@ -76,17 +112,19 @@ kulu LocalInstaller ye Installer {
             segin niin galon;
         }
         # copy the folder in root
-        segin niin ale.copyFolder(qualifiedSource, Sira.kura(ale.root).kunBen(ale.name).sebenma, tien)
+        nin ret = copyFolder(qualifiedSource, Sira.kura(ale.root).kunBen(ale.name).sebenma, tien)
+        nii ret A.yira("${Color.GREEN}Dependency ${ale.name} installed successfully${Color.RESET}")
+        segin niin ret
     }
 }
 
 kulu Fuu {
+    @weele
     dilan kura() {}
     nin _version = "0.0.1"
     mine() {
         # install
         nin args = Process.arguments
-        A.yira(Platform.homePath)
         nii (args.laKolon) {
             ale.siri()
             segin niin galon;
@@ -114,7 +152,6 @@ kulu Fuu {
     }
     libJson {
         nin jsonPath = Sira.kura(Process.cwd).kunBen("./libs.json").sebenma
-        A.yira(jsonPath)
         nin ret
         nin try = Djuru.kura {
             nin json = Gafe.read(jsonPath).konon
@@ -122,7 +159,6 @@ kulu Fuu {
             segin niin JSON.decode(json)
         }
         ret = try.aladie()
-        A.yira(try.fili)
         segin niin nii try.fili gansan note ret
     }
     libJson=(v) {
@@ -130,20 +166,21 @@ kulu Fuu {
         nin try = Djuru.kura {
             Gafe.openWithFlags(jsonPath, GafeFlags.writeOnly|GafeFlags.truncate) { file =>
                 file.writeBytes(JSON.encode(v)).konon
-            }.konon
+            }.tienna { err =>
+                A.yira("Error:: $err")
+            }
         }
         try.aladie()
-        segin niin nii try.fili gansan note tien
+        segin niin try.fili != gansan
     }
     guessNameAndLocation(lib) {
         segin niin nii (lib.beDamineNiin("file:")) {
-            lib.faraFara("/")[-1]
+            [lib.faraFara("/")[-1], lib]
         } note {
             nin els = lib.faraFara("@")
             nii(els.hakan > 1) {
-                segin niin [els[0], els[1..-1].kunBen("@")]
-            }
-            segin niin [lib, lib]
+                [els[0], els[1..-1].kunBen("@")]
+            } note [lib, lib]
         }
     }
     siri(lib) {
@@ -159,6 +196,7 @@ kulu Fuu {
         A.yira("Install $name")
         nin installer = Installer.instanceFor(name, "mosc_libs", at)
         nii (installer.install()) {
+            
             dependencies[name] = {
                 "name": name,
                 "at": at
@@ -167,6 +205,7 @@ kulu Fuu {
         }
 
     }
+    
     siri() {
         A.yira("${Color.GREEN}Installing libs${Color.RESET}")
         
@@ -187,4 +226,4 @@ kulu Fuu {
     }
 }
 
-Fuu.kura().mine()
+Fuu().mine()

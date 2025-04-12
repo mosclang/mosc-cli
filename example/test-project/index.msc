@@ -5,12 +5,9 @@ kabo "nafamaw" nani Buffer
 kabo "timer" nani WaatiMassa
 
 client.get("https://mosclang.com/mosc_logo.png").tiimena { res =>
-    A.yira("Success $res")
     Gafe.openWithFlags("logo.png", GafeFlags.writeOnly|GafeFlags.create) {file =>
-        A.yira("hey:::: $file")
         file.writeBytes(res.body.data).konon
     }
-    A.yira("Res: ${res.body.data.bytes}")
 }.tienna {e =>
     A.yira(e)
 }

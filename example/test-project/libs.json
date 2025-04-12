@@ -1,9 +1,1 @@
-{
-  "name": "test",
-  "dependencies": {
-    "mio": {
-      "name": "mio",
-      "at": "file://../libs/http-client"
-    }
-  }
-}
+{"dependencies":{"mio":{"name":"mio","at":"file://../libs/http-client"},"vsce":{"name":"vsce","at":"https://github.com/mosclang/vscode-mosc"}},"name":"test"}

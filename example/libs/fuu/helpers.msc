@@ -40,3 +40,33 @@ tii rimraf(folder) {
     Lahidu.konon(rm_(folder))
     segin niin ret
 }
+
+tii copyFolder(folder, destination, recursive) {
+    A.yira("Copying file $folder to $destination")
+    nii !Npalan.exists(folder).konon segin
+    nin sPath = Sira.kura(folder)
+    nin destPath = Sira.kura(destination)
+    nii (Npalan.exists(destPath.sebenma).konon) {
+        nii !rimraf(destPath.sebenma) segin niin galon
+    }
+    Npalan.create(destPath.sebenma).konon
+    nin content = Npalan.list(folder).konon
+    nin ret = tien
+    content.kelenkelen {dir =>
+        nin dirPath = sPath.kunBen(dir).sebenma
+        nii (Gafe.exists(dirPath).konon) {
+            nin targetPath = Sira.kura(destination).kunBen(dir).sebenma
+            ## case file, copy directly
+            A.yira("Copying file $targetPath")
+            Gafe.open(dirPath) { source =>
+                Gafe.create(targetPath) { dest => 
+                    dest.writeBytes(source.readBytes(source.size.konon).konon).konon
+                }.konon
+                A.yira("File copied successfully to")
+            }.konon
+        } note {
+            nii recursive ret = (ret && copyFolder(dirPath, destPath.kunBen(dir).sebenma, recursive))
+        }
+    }
+    segin niin ret
+}
