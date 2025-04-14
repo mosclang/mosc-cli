@@ -36,14 +36,14 @@ tii rimraf(folder) {
     children.kelenkelen { it =>
         ret = ret && promises.aFaraAkan(rm_(Sira.kura(folder).kunBen(it).sebenma))
     }
-    Lahidu.konon(promises[0])
+    Lahidu.konon(promises)
     Lahidu.konon(rm_(folder))
     segin niin ret
 }
 
 tii copyFolder(folder, destination, recursive) {
     A.yira("Copying file $folder to $destination")
-    nii !Npalan.exists(folder).konon segin
+    nii !Npalan.exists(folder).konon segin niin galon
     nin sPath = Sira.kura(folder)
     nin destPath = Sira.kura(destination)
     nii (Npalan.exists(destPath.sebenma).konon) {
@@ -52,7 +52,7 @@ tii copyFolder(folder, destination, recursive) {
     Npalan.create(destPath.sebenma).konon
     nin content = Npalan.list(folder).konon
     nin ret = tien
-    content.kelenkelen {dir =>
+    seginka (content kono dir) {
         nin dirPath = sPath.kunBen(dir).sebenma
         nii (Gafe.exists(dirPath).konon) {
             nin targetPath = Sira.kura(destination).kunBen(dir).sebenma

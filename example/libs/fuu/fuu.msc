@@ -129,12 +129,13 @@ kulu Fuu {
             ale.siri()
             segin niin galon;
         }
+        A.yira(args)
         nii (args.bAkono("-v") || args.bAkono("--version")) {
             A.yira("${Color.GREEN}${ale._version}-fuu${Color.RESET}")
             segin niin tien
         }
         nii (args[0].beDamineNiin("-")) {
-            A.yira("${Color.RED}Invalid option received:\nUsage: moscc fuu <lib>\nmoscc fuu -v|--version${Color.RESET}")
+            A.yira("${Color.RED}Invalid option received:\nUsage:\nmosc fuu \nmoscc fuu <lib>\nmoscc fuu -v|--version${Color.RESET}")
             segin niin galon;
         }
         ale.siri(args[0])
