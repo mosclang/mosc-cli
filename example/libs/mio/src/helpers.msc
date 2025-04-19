@@ -1,0 +1,100 @@
+kabo "nafamaw" nani Sebenw
+kabo "nafamaw" nani StringBuffer
+kabo "dumare" nani Dumare
+
+kulu Helpers {
+}
+kulu URL {
+    nin _scheme
+    nin _host
+    nin _port
+    nin _location
+    secured => ale.scheme == "https"
+    scheme => ale._scheme
+    host => ale._host
+    port => ale._port
+    location => ale._location
+    dilan kura_(ale._scheme, ale._host, ale._port, ale._location) {
+    }
+    dialen parse(url) {
+        nii !url segin
+        nin [scheme, rest] = url.faraFara("://")
+        nii scheme == gansan segin
+        nin els = rest?.faraFara("/") ?? []
+        nii els.laKolon segin
+        nin [host, port] = els[0].faraFara(":")
+        segin niin URL.kura_(scheme, host, port ?? (nii scheme == "https" 443 note 80), nii els.hakan < 2 "/" note "/" + els[1...els.hakan].kunBen("/"))
+    }
+    sebenma => "{scheme: ${ale._scheme}, host: ${ale._host}, port: ${ale._port}, secured: ${ale.secured}, location: ${ale._location}}"
+}
+kulu Byte {
+    dialen returnCode => 13 # \r
+    dialen carriageCode => 10 # \n
+}
+kulu HttpHeaders {
+    nin _headers = {}
+    headers => ale._headers
+    @weele
+    dilan kura() {}
+    @weele 
+    dilan kura(data) {
+        data.kelenkelen {item =>
+            ale._headers[Sebenw.toLowercase(item.key)] = item.value
+        }
+    }
+    append(key, value) {
+        ale._headers[Sebenw.toLowercase(key)] = value
+        segin niin ale
+    }
+    get(key) {
+        segin niin ale._headers[Sebenw.toLowercase(key)]
+    }
+    [key] {
+        segin niin ale._headers[Sebenw.toLowercase(key)]
+    }
+    [key] = (value) {
+        ale._headers[Sebenw.toLowercase(key)] = value
+    }
+    sebenma => ale._headers.sebenma
+   
+    build() {
+        nin headers = StringBuffer.kura(64)
+        ale._headers.kelenkelen { item =>
+            headers.append("${item.key}: ${item.value}\r\n")
+        }
+        headers.append("\r\n")
+        segin niin headers.sebenma
+    }
+    clone => HttpHeaders(ale._headers)
+}
+kulu Param {
+    nin key
+    nin value
+    @weele
+    dilan kura(ale.key, ale.value) {}
+    sebenma => "${ale.key}=${ale.value}"
+}
+kulu Annotation {
+    nin name
+    nin params
+    @weele
+    dilan kura(ale.name, value) {
+        ale.params = {...value}
+    }
+    sebenma => "{name: ${ale.name}, params: ${ale.params}}"
+}
+kulu Annotations {
+    nin _ladaw
+    @weele
+    dilan kura(from) {
+        ale._ladaw = from.suku.ladaw
+    }
+    methods {
+        nin ret = {}
+        ale._ladaw?.tiidenw?.kelenkelen { item =>
+            ret[item.key] = item.value.yelema { anno => Annotation.kura(anno.key, anno.value) }.walanNa
+        }
+        segin niin ret
+    }
+    self => ale._ladaw?.yere?.yelema { item => Annotation.kura(item.key, item.value)}?.walanNa
+}

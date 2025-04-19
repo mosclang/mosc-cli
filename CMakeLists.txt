@@ -69,7 +69,7 @@ LIST(APPEND MSC_INCLUDE_DIRS
 
 #include mosc dependancy
 LIST(APPEND MSC_INCLUDE_DIRS
-        deps/mosc/api
+        deps/mosc/src/api
         deps/mosc/src/builtin
         deps/mosc/src/common
         deps/mosc/src/compiler
@@ -85,22 +85,22 @@ file(GLOB SOURCE_FILES_H deps/mosc/src/**/*.h)
 file(GLOB SOURCE_FILES_INC deps/mosc/src/**/*.inc)
 
 LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C} ${SOURCE_FILES_H} ${SOURCE_FILES_INC})
-LIST(APPEND MSC_SOURCE_FILES deps/mosc/api/msc.h)
+LIST(APPEND MSC_SOURCE_FILES deps/mosc/src/api/msc.h)
 
 #include nafamaw dependancy
 
 LIST(APPEND MSC_INCLUDE_DIRS
-        deps/nafamaw
-        deps/nafamaw/vendors
-        deps/nafamaw/packages
+        deps/nafamaw/src
+        deps/nafamaw/src/vendors
+        deps/nafamaw/src/packages
         )
 
-file(GLOB SOURCE_FILES_C deps/nafamaw/**/*.c)
-file(GLOB SOURCE_FILES_H deps/nafamaw/**/*.h)
-file(GLOB SOURCE_FILES_INC deps/nafamaw/**/*.inc)
+file(GLOB SOURCE_FILES_C deps/nafamaw/src/**/*.c)
+file(GLOB SOURCE_FILES_H deps/nafamaw/src/**/*.h)
+file(GLOB SOURCE_FILES_INC deps/nafamaw/src/**/*.inc)
 
 LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C} ${SOURCE_FILES_H} ${SOURCE_FILES_INC})
-LIST(APPEND MSC_SOURCE_FILES deps/nafamaw/nafamaw.c deps/nafamaw/nafamaw.h)
+LIST(APPEND MSC_SOURCE_FILES deps/nafamaw/src/nafamaw.c deps/nafamaw/src/nafamaw.h)
 
 
 #include libuv dependancy
@@ -217,14 +217,14 @@ ENDIF ()
 # incluse uWebsocket
 LIST(APPEND MSC_INCLUDE_DIRS
         deps/uWebSockets/src
-        deps/uWebSockets/capi
+        deps/web
         deps/uWebSockets/uSockets/src
         )
 # add uSocket source
 file(GLOB SOURCE_FILES_C deps/uWebSockets/uSockets/src/*.c deps/uWebSockets/uSockets/src/eventing/*.c deps/uWebSockets/uSockets/src/crypto/*.c deps/uWebSockets/uSockets/src/io_uring/*.c deps/uWebSockets/uSockets/src/crypto/*.cpp)
 LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C})
 # add uWebsocket source
-file(GLOB SOURCE_FILES_C deps/uWebSockets/capi/*.cpp)
+file(GLOB SOURCE_FILES_C deps/web/*.cpp deps/web/*.c)
 LIST(APPEND MSC_SOURCE_FILES ${SOURCE_FILES_C})
 
 

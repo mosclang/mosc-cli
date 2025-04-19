@@ -1,0 +1,18 @@
+kabo "mio/mio" nani MioServerContext, MioRouter
+
+kulu IndexControler ye MioRouter {
+    @weele
+    dilan kura() {}
+
+    @!get(path="/health")
+    health(req, res) {
+        res.end("Hello Guy")
+    }
+    @!any(path="/")
+    index(req, res) {
+        res.end("Hello World")
+    }
+}
+
+
+MioServerContext().registerRouter(IndexControler()).run(3001)

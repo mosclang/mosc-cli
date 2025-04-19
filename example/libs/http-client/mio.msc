@@ -1,4 +1,0 @@
-kabo "./src/client" nani HttpClient
-# nani "./src/client"
-nin client = HttpClient()
-A.yira(client.version)

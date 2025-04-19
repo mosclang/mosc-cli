@@ -4,6 +4,13 @@ kabo "io" nani Stdin, Stderr, Gafe, Stdout, Stat
 kabo "dumare" nani Dumare
 kabo "fan" nani Fan
 kabo "runtime" nani Runtime
+tii Baa.fana(fn) {
+    fn.weele(ale)
+    segin niin ale
+}
+tii Baa.bla(fn) {
+    segin niin fn.weele(ale)
+}
 
 kulu StackTrace {
   nin _fiber

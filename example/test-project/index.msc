@@ -1,10 +1,10 @@
-kabo "mio/mio" nani client
+kabo "mio/mio" nani MioClient
 kabo "io" nani Stdin, Stdout, Gafe, GafeFlags
 kabo "lahidu" nani Lahidu
 kabo "nafamaw" nani Buffer
 kabo "timer" nani WaatiMassa
 
-client.get("https://mosclang.com/mosc_logo.png").tiimena { res =>
+MioClient().get("https://mosclang.com/mosc_logo.png").tiimena { res =>
     Gafe.openWithFlags("logo.png", GafeFlags.writeOnly|GafeFlags.create) {file =>
         file.writeBytes(res.body.data).konon
     }

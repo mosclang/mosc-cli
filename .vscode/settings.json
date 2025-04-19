@@ -27,6 +27,8 @@
         "ratio": "c",
         "tuple": "c",
         "algorithm": "cpp",
-        "memory_resource": "cpp"
+        "memory_resource": "cpp",
+        "*.inc": "c",
+        "nafamaw.h": "c"
     }
 }

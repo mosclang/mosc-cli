@@ -102,9 +102,9 @@ kulu LocalInstaller ye Installer {
     }
     
     install() {
-        nii (ale.isInstalled) {
-            segin niin galon
-        }
+        # nii (ale.isInstalled) {
+        #     segin niin galon
+        # }
         A.yira("${Color.GREEN}Installing ${ale.name} form ${ale.source}${Color.RESET}")
         nin qualifiedSource = ale.source[7..-1]
         nii (!Npalan.exists(qualifiedSource).konon) {
