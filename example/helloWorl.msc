@@ -37,7 +37,11 @@ nin server = HttpServer
                 }
                 .put("/update/:id") {(req, res) =>
                     nin id = req.parameter(0)
-                    nin body = JSON.decode(req.body)
+                    A.yira(id)
+                    req.onAbort {
+                        A.yira("Aborted")
+                    }
+                    nin body = JSON.decode(req.body.konon)
 
                     nin item = list.yoroMin {(e) => "${e["id"]}" == "$id" }.let {(it) =>
                         A.yira(it.walanNa)

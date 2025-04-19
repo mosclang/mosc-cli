@@ -168,7 +168,7 @@ kulu Socket {
 }
 
 dunan kulu HttpReqRes {
-  dunan body_(djuru)
+  dunan body_(fn)
   dunan end_(data, close)
   dunan endWithNoBody_(close)
   dunan tryEnd_(data, total,close)
@@ -236,7 +236,7 @@ kulu HttpRequest {
     dilan kura_(reqRes) {
         ale._req = reqRes
     }
-    body  =>  Lahidu.kura { res, err => ale._req.body_ { r => r.resolve(res, err) } }
+    body => Lahidu.kura { res, err => ale._req.body_ { r =>  r.resolve(res, err) } }
     url { ale._req.url_ }
     fullUrl { ale._req.fullUrl_ }
     method { ale._req.method_ }

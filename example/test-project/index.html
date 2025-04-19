@@ -1476,3 +1476,737 @@ For a <code>bambara</code> and non <code>english</code> speaker it&rsquo;s a lot
 
 
 
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+	<meta name="generator" content="Hugo 0.134.2">
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="
+  Introduction
+  #
+
+Mosc is tiny simple programing language writen in C.  Mosc VM reads, compiles and interprets Mosc code.  Mosc is intended to allow Bambara speakers people to code easily in Bambara. That will simplify a lot programing learning curve for those people who don&rsquo;t have an easy access to software developement stuffs.
+The initial goal of Mosc will be focused on educationnal purposes.
+Mosc main purspose is to be embed inside a host application that can so execute Mosc code throuth its VM.
+Mosc is very easy to handle.
+For a bambara and non english speaker it&rsquo;s a lot easy to write code like">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="https://mosclang.com/">
+  <meta property="og:site_name" content="Mosc">
+  <meta property="og:title" content="Mosc">
+  <meta property="og:description" content=" Introduction # Mosc is tiny simple programing language writen in C. Mosc VM reads, compiles and interprets Mosc code. Mosc is intended to allow Bambara speakers people to code easily in Bambara. That will simplify a lot programing learning curve for those people who don’t have an easy access to software developement stuffs.
+The initial goal of Mosc will be focused on educationnal purposes.
+Mosc main purspose is to be embed inside a host application that can so execute Mosc code throuth its VM. Mosc is very easy to handle.
+For a bambara and non english speaker it’s a lot easy to write code like">
+  <meta property="og:locale" content="en">
+  <meta property="og:type" content="website">
+<title>Mosc | Mosc</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.png" type="image/x-icon">
+  <link rel="alternate" hreflang="bm" href="https://mosclang.com/bm/" title="Mosc">
+  <link rel="alternate" hreflang="fr" href="https://mosclang.com/fr/" title="Mosc">
+<link rel="stylesheet" href="/book.min.f9597508a90edd3dcb26b545895b547b36690e817ebbca4615d176046ed04b7d.css" integrity="sha256-&#43;Vl1CKkO3T3LJrVFiVtUezZpDoF&#43;u8pGFdF2BG7QS30=" crossorigin="anonymous">
+
+<script  src="/prism/prism.js"></script>
+<script  type="module" src="/codejar.js"></script>
+<script  src="/codejar-linenumbers.js"></script>
+<script src="/prism/prism.js"></script>
+<script  type="module" src="/mosc.js"></script>
+<link rel="stylesheet" href="/prism/prism.css">
+<link rel="stylesheet" href="/mosc.css">
+  <script defer src="/flexsearch.min.js"></script>
+  <script defer src="/en.search.min.0e89bb246167ca3157d308f1ab4a4e4f01984b03c93aa4b92be9f7d5ae879d38.js" integrity="sha256-Dom7JGFnyjFX0wjxq0pOTwGYSwPJOqS5K&#43;n31a6HnTg=" crossorigin="anonymous"></script>
+
+  <script defer src="/sw.min.6f6f90fcb8eb1c49ec389838e6b801d0de19430b8e516902f8d75c3c8bd98739.js" integrity="sha256-b2&#43;Q/LjrHEnsOJg45rgB0N4ZQwuOUWkC&#43;NdcPIvZhzk=" crossorigin="anonymous"></script>
+<link rel="alternate" type="application/rss+xml" href="https://mosclang.com/index.xml" title="Mosc" />
+<!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+  
+</head>
+<body dir="ltr">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      <div class="book-menu-content">
+        
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><img src="/mosc_logo.png" alt="Logo" /><span>Mosc</span>
+  </a>
+</h2>
+
+
+<div class="book-search">
+  <input type="text" id="book-search-input" placeholder="Search" aria-label="Search" maxlength="64" data-hotkeys="" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+
+
+
+  
+
+
+
+  
+    
+  
+    
+  
+
+
+  
+
+  
+
+
+<ul class="book-languages">
+  <li>
+    <input type="checkbox" id="languages" class="toggle" />
+    <label for="languages" class="flex justify-between">
+      <a role="button" class="flex align-center">
+        <img src="/svg/translate.svg" class="book-icon" alt="Languages" />
+        English
+      </a>
+    </label>
+
+    <ul>
+      
+      <li>
+        <a href="https://mosclang.com/bm/">
+          Bambara
+        </a>
+      </li>
+      
+      <li>
+        <a href="https://mosclang.com/fr/">
+          Français
+        </a>
+      </li>
+      
+    </ul>
+  </li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/get-started/" class="">Get Started</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/syntax/" class="">Syntax</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/values/" class="">Values</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/walan/" class="">List</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/wala/" class="">Maps</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/variables/" class="">Variables</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/control-flow/" class="">Control Flow</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/method-calls/" class="">Method call</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/classes/" class="">Classes</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/functions/" class="">Functions</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/concurency/" class="">Concurency</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/error-handling/" class="">Error Handling</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/module/" class="">Module</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-957d41121a977b18824d0a55c6e28761" class="toggle"  />
+    <label for="section-957d41121a977b18824d0a55c6e28761" class="flex justify-between">
+      <a role="button" class="">API Modules</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li class="book-section-flat" >
+          
+  
+  
+
+  
+    <span>Core</span>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/a/" class="">A</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/baa/" class="">Baa</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/diat/" class="">Diat</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/djuru/" class="">Djuru</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/funan/" class="">Funan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/gansan/" class="">Gansan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/kulu/" class="">Kulu</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/seben/" class="">Seben</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/tienya/" class="">Tienya</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/tii/" class="">Tii</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/tugun/" class="">Tugun</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/wala/" class="">Wala</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/core/walan/" class="">Walan</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li class="book-section-flat" >
+          
+  
+  
+
+  
+    <span>Fan</span>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/fan/fan/" class="">Fan</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li class="book-section-flat" >
+          
+  
+  
+
+  
+    <span>Kunfe</span>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/modules/kunfe/kunfe/" class="">Kunfe</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/try/" class="">Try Mosc</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+
+
+
+
+
+
+
+
+
+
+  
+<ul>
+  
+  <li>
+    <a href="https://github.com/mosclang/mosc" target="_blank" rel="noopener">
+        Github
+      </a>
+  </li>
+  
+  <li>
+    <a href="https://twiter.com/mosclang" target="_blank" rel="noopener">
+        Twiter
+      </a>
+  </li>
+  
+</ul>
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+ 
+      </div>
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/svg/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <strong>Mosc</strong>
+
+  <label for="toc-control">
+    
+  </label>
+</div>
+
+
+  
+ 
+      </header>
+
+      
+      
+  <article class="markdown"><h2 id="introduction">
+  Introduction
+  <a class="anchor" href="#introduction">#</a>
+</h2>
+<p>Mosc is tiny simple programing language writen in C.  Mosc VM reads, compiles and interprets Mosc code.  Mosc is intended to allow <strong>Bambara</strong> speakers people to code easily in <strong>Bambara</strong>. That will simplify a lot programing learning curve for those people who don&rsquo;t have an easy access to software developement stuffs.<br>
+The initial goal of Mosc will be focused on educationnal purposes.</p>
+<p>Mosc main purspose is to be embed inside a host application that can so execute <code>Mosc</code> code throuth its VM.
+Mosc is very easy to handle.<br>
+For a <code>bambara</code> and non <code>english</code> speaker it&rsquo;s a lot easy to write code like</p>
+<pre tabindex="0"><code class="language-mosc" data-lang="mosc"> nin foli = &#34;Djen nin tié&#34;
+ A.yira(foli)
+</code></pre><p>instead of</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Main</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">public</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">main</span>(java.<span style="color:#a6e22e">lang</span>.<span style="color:#a6e22e">String</span><span style="color:#f92672">[]</span> args) {
+</span></span><span style="display:flex;"><span>        java.<span style="color:#a6e22e">lang</span>.<span style="color:#a6e22e">String</span> salutation <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;Hello world&#34;</span>;
+</span></span><span style="display:flex;"><span>        System.<span style="color:#a6e22e">out</span>.<span style="color:#a6e22e">println</span>(salutation);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Mosc is compact and syntax sugar, syntaxically, it can be seen as <code>kotlin</code> (with block argument style) and <code>javascript</code> (with spread and rest operators).</p>
+<ul>
+<li><strong>Mosc is fast</strong>, due to a single pass compiler to a tight bytecode and a compact obect representation.</li>
+<li><strong>Mosc is class-based</strong>, in contrary to many other scripting languages that do not really have a Object-model. Objects are everywhere in Mosc.</li>
+<li><strong>Mosc is concurrent</strong> through its lightweight 
+  <a href="/docs/concurency/">Djurus</a>(fibers or threads) implementations</li>
+</ul>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+
+
+
+
+
+</div>
+
+
+
+
+
+  <script>(function(){function e(e){const t=window.getSelection(),n=document.createRange();n.selectNodeContents(e),t.removeAllRanges(),t.addRange(n)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script>
+
+
+<script  type="text/javascript" src="/mosc-setup.js"></script>
+<script defer async type="text/javascript" src="/mosc-try.js"></script>
+ 
+        
+      </footer>
+
+      
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

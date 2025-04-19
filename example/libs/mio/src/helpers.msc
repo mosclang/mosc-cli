@@ -23,7 +23,7 @@ kulu URL {
         nin els = rest?.faraFara("/") ?? []
         nii els.laKolon segin
         nin [host, port] = els[0].faraFara(":")
-        segin niin URL.kura_(scheme, host, port ?? (nii scheme == "https" 443 note 80), nii els.hakan < 2 "/" note "/" + els[1...els.hakan].kunBen("/"))
+        segin niin URL.kura_(scheme, host, Diat.kaboSebenna(port ?? (nii scheme == "https" "443" note "80")), nii els.hakan < 2 "/" note "/" + els[1...els.hakan].kunBen("/"))
     }
     sebenma => "{scheme: ${ale._scheme}, host: ${ale._host}, port: ${ale._port}, secured: ${ale.secured}, location: ${ale._location}}"
 }
@@ -38,6 +38,12 @@ kulu HttpHeaders {
     dilan kura() {}
     @weele 
     dilan kura(data) {
+        data.kelenkelen {item =>
+            ale._headers[Sebenw.toLowercase(item.key)] = item.value
+        }
+    }
+    addAll(other) {
+        nin data = nii other ye HttpHeaders other.headers note nii other ye Wala other note ({})
         data.kelenkelen {item =>
             ale._headers[Sebenw.toLowercase(item.key)] = item.value
         }

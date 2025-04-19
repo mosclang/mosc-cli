@@ -102,7 +102,7 @@ kulu Lahidu {
     nin _withError = galon
     nin _callback = gansan
     nin _success = Tii.kura { v =>
-
+    
         ale._callback?.fullfil(v)
     }
     nin _error = Tii.kura { e =>
@@ -148,30 +148,35 @@ kulu Lahidu {
             segin niin tien # TODO:// returns new Lahidu
         }
         ale._state = 0
-        DogodaBaga.nextTick {
-            nin th = Djuru.kura {
-                ale._handler.weele(Tii.kura { v =>
-                    ale._state = 1
-                    ale._resolvedValue = v
-                    ale._withError = galon
-                    ale._success.weele(v)
-                   
-                }, Tii.kura { e =>
-                    ale._state = 1
-                    ale._resolvedValue = e
-                    ale._withError = tien
-                    ale._error.weele(e)
-                    
-                })
-            }
-            th.aladie();
-            nii (th.fili) {
+        # DogodaBaga.nextTick {
+            
+        # }
+        nin th = Djuru.kura {
+            ale._handler.weele(Tii.kura { v =>
                 ale._state = 1
-                ale._resolvedValue = th.fili
-                ale._withError = tien
-                ale._error.weele(th.fili)
+                ale._resolvedValue = v
+                ale._withError = galon
+                DogodaBaga.nextTick {
+                    ale._success.weele(v)
+                }
                 
-            }
+            }, Tii.kura { e =>
+                ale._state = 1
+                ale._resolvedValue = e
+                ale._withError = tien
+                DogodaBaga.nextTick {
+                    ale._error.weele(e)
+                }
+                
+            })
+        }
+        th.aladie();
+        nii (th.fili) {
+            ale._state = 1
+            ale._resolvedValue = th.fili
+            ale._withError = tien
+            ale._error.weele(th.fili)
+            
         }
         segin niin galon
     }

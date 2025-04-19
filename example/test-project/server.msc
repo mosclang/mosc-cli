@@ -1,6 +1,7 @@
 kabo "mio/mio" nani MioServerContext, MioRouter
-
+kabo "json" nani JSON
 kulu IndexControler ye MioRouter {
+    nin list = []
     @weele
     dilan kura() {}
 
@@ -8,9 +9,17 @@ kulu IndexControler ye MioRouter {
     health(req, res) {
         res.end("Hello Guy")
     }
+    @!post(path="/new")
+    post(req, res) {
+        nin b = req.body.kononWaliGansan
+        A.yira(b)
+        nin body = JSON.parse(b)
+        ale.list.aFaraAkan(body)
+        res.cork { r => r.end(ale.list) }
+    }
     @!any(path="/")
     index(req, res) {
-        res.end("Hello World")
+        res.end(ale.list)
     }
 }
 

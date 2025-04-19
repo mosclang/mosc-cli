@@ -1654,7 +1654,7 @@ void socketContextDestroy(void *handle) {
 
     if (context->context) {
         if (!context->closed) {
-            us_socket_context_close(context->ssl, context->context);
+            // us_socket_context_close(context->ssl, context->context);
         }
         us_socket_context_free(context->ssl, context->context);
     }
