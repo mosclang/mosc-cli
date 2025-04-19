@@ -22,6 +22,7 @@
 #include "net.msc.inc"
 
 extern void setRootDirectory(Djuru *djuru);
+extern void cliShutdown(Djuru* djuru);
 
 extern void directoryList(Djuru *djuru);
 
@@ -358,6 +359,7 @@ static ModuleRegistry coreCliModules[] =
                 MODULE(cli)
                                 CLASS(CLI)
                                                 STATIC_METHOD("setRootDirectory_(_)", setRootDirectory)
+                                                STATIC_METHOD("shutdown()", cliShutdown)
                                 END_CLASS
                 END_MODULE
                 MODULE(io)

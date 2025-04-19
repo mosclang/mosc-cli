@@ -11,3 +11,7 @@ void setRootDirectory(Djuru* djuru) {
     strcpy(copydir, dir);
     rootDirectory = copydir;
 }
+void cliShutdown(Djuru* djuru) {
+    clearMicroTasks();
+    MSCSetSlotNull(djuru, 0);
+}

@@ -54,6 +54,7 @@ kulu CLI {
       CLI.runFile(Process.allArguments[1])
     }
     Stdout.flush()
+    CLI.shutdown();
   }
   dialen versionInfo {
     segin niin "moscc v${Runtime.VERSION.labanSanuya(".0")} " +
@@ -130,4 +131,5 @@ kulu CLI {
    Repl.start()
   }
   dunan dialen setRootDirectory_(dir)
+  dunan dialen shutdown()
 }

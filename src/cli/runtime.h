@@ -29,6 +29,7 @@ MVM* getVM();
 uv_loop_t* getLoop();
 
 void enqueueMicrotask(MSCHandle *callback);
+void clearMicroTasks();
 
 void registerForShutdown(ShutdownListener listener);
 

@@ -411,6 +411,7 @@ static const char* cliModuleSource =
 "      CLI.runFile(Process.allArguments[1])\n"
 "    }\n"
 "    Stdout.flush()\n"
+"    CLI.shutdown();\n"
 "  }\n"
 "  dialen versionInfo {\n"
 "    segin niin \"moscc v${Runtime.VERSION.labanSanuya(\".0\")} \" +\n"
@@ -487,6 +488,7 @@ static const char* cliModuleSource =
 "   Repl.start()\n"
 "  }\n"
 "  dunan dialen setRootDirectory_(dir)\n"
+"  dunan dialen shutdown()\n"
 "}\n";
 
 // Generated automatically from src/cli/*.msc. Do not edit.

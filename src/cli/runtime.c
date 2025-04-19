@@ -296,6 +296,9 @@ void microtaskAsyncCb(uv_async_t *handle) {
         uv_unref((uv_handle_t *) microtaskAsync);
     }
 }
+void clearMicroTasks() {
+    uv_unref((uv_handle_t *) microtaskAsync);
+}
 
 void enqueueMicrotask(MSCHandle *callback) {
     uv_mutex_lock(microtaskMutex);
