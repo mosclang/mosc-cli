@@ -5,17 +5,20 @@ kabo "nafamaw" nani Buffer
 kabo "timer" nani WaatiMassa
 
 nin client = MioClient()
-client.get({url: "https://mosclang.com/mosc_logo.png"}).tiimena { res =>
-    Gafe.openWithFlags("logo.png", GafeFlags.writeOnly|GafeFlags.create) {file =>
-        file.writeBytes(res.body.data).konon
-    }
-}.tienna {e =>
-    A.yira(e)
-}
-nin url = URL.parse("http://localhost:3001/new")
+# client.get({url: "https://mosclang.com/mosc_logo.png"}).tiimena { res =>
+#     Gafe.openWithFlags("logo.png", GafeFlags.writeOnly|GafeFlags.create) {file =>
+#         file.writeBytes(res.body.data).konon
+#     }
+# }.tienna {e =>
+#     A.yira(e)
+# }
+nin url = URL.parse("https://mosclang.com/mosc_logo.png")
 A.yira(url)
-nin res = client.post({url: "http://localhost:3001/new", body: {"name": "Amadou", age: 25}}).konon
+client.get({url: "http://localhost:3001/"}).tiimena { res =>
 A.yira("::: ${res.body}")
+
+}.tienna {err => A.yira(err)}
+
 
 # Lahidu.tiime("Hello").tiimena { r =>
 #      Gafe.openWithFlags("test.txt", GafeFlags.writeOnly|GafeFlags.create) {file =>

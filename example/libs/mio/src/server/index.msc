@@ -1,0 +1,176 @@
+kabo "net" nani HttpServer
+kabo "./http-server" nani HttpServer inafo MIOHttpServer
+kabo "dumare" nani Dumare
+kabo "../helpers" nani Annotations
+kabo "nafamaw" nani Sebenw
+
+kulu HttpRequestContext {
+    nin _method
+    nin _path
+    nin _params
+    nin _queries
+    path => ale._path
+    method => ale._method
+    params => ale._params
+    queries => ale._queries
+    @weele
+    dilan kura(ale._method, params ) {
+        A.yira("Params::: $params")
+        ale._path = params["path"][0]
+        ale._queries = params["queries"] ?? []
+        ale._params = []
+        ale._extractAttributes()
+    }
+    _extractAttributes() {
+        seginka (ale._path.faraFara("/") kono segment) {
+            nii (segment.beDamineNiin(":") ) {
+                ale._params.aFaraAkan(segment[1..-1])
+            }
+        }
+    }
+}
+kulu RequestHookType {
+    dialen before => "before"
+    dialen after => "after"
+}
+kulu RequestHook {
+    nin _fn
+    nin _type
+    fn => ale._fn
+    type => ale._type
+    @weele
+    dilan kura(ale._type, ale._fn)
+    weele(router, req, res, context) {
+        nii ale._type == RequestHookType.before ale._fn.weele(router, [req, res]) note ale._fn.weele(router, [req, res])
+    }
+}
+kulu InternalRequestHook ye RequestHook {
+    @weele
+    dilan kura(type, fn) {
+        faa(type, fn)
+    }
+    
+    weele(router, req, res, context) {
+        nii ale.type == RequestHookType.before ale.fn.weele(context, req) note ale.fn.weele(context, req, res)
+    }
+}
+kulu MioRouter {
+    nin defaultParamExtractor = InternalRequestHook.kura(RequestHookType.before) { context, req =>
+        # we need to extract all params before passing the request to another execution context
+        req.data["params"] = {}
+        req.data["queries"] = {}
+        seginka (0...context.params.hakan kono it) {
+            A.yira("Params: ${context.params[it]} - ${it.suku}")
+            req.data["params"][context.params[it]] = req.parameter(context.params[it])
+        }
+        context.queries.kelenkelen { it =>
+            req.data["queries"][it] = req.query(context.queries[it])
+        }
+        
+    }
+    isHook(method) => nii method.name == "before" RequestHookType.before note nii method.name == "after" RequestHookType.after note gansan
+    routes(context) {
+        nin mirror = Dumare.diaaBo(ale.suku)
+        nin annotations = Annotations(ale)
+        nin self = annotations.self
+        nin methods = {}
+        mirror.tiidenw.kelenkelen { method => 
+            methods[method.signature] = method
+        }
+        nin hooks = [ale.defaultParamExtractor]
+        seginka (annotations.methods kono item) {
+            nin signature = item.key
+            item.value.kelenkelen {method =>
+                nin isHook = ale.isHook(method) 
+                A.yira("Method: ${method}")
+                nii (isHook) {
+                    hooks.aFaraAkan(RequestHook.kura(isHook, methods[signature]))
+                    segin
+                }
+                nin reqContext = HttpRequestContext.kura(method.name, method.params)
+                context.registerHandler(RouteHandler.kura(reqContext) { req, res =>
+                    nii (context.preferedServer == "uws" ) {
+                        req.onAbort {
+                        }
+                    }
+                    # run any hook registered before passing the request
+                    seginka (hooks.yoroMin { it => it.type == RequestHookType.before } kono h) {
+                        nii (h.weele(ale, req, res, reqContext)) {
+                            # catched the response, so do not continue with request
+                            segin
+                        }
+                    }
+                    nii (context.preferedServer == "uws" ) {
+                        res.cork { r => methods[signature].weele(ale, [req, r])}
+                    } note {
+                        methods[signature].weele(ale, [req, res])
+                    }
+                    seginka (hooks.yoroMin { it => it.type == RequestHookType.after } kono h) {
+                        nii (h.weele(ale, req, res, reqContext)) {
+                            # catched the response, so do not continue with request
+                            segin
+                        }
+                    }
+                })
+            }
+        }
+    }
+}
+kulu RouteHandler {
+    nin _context
+    nin _fn
+    context => ale._context
+    handler => ale._fn
+
+    # constructor with implicit initializer seems to not work if not body specified, to be checked and fixed
+    @weele
+    dilan kura(ale._context, ale._fn )
+}
+#**
+ Typically the context will register `MioRouter` instances
+*#
+kulu MioServerContext {
+    nin _server
+    nin _port
+    server => ale._server
+    nin _preferedServer = "mio"
+    preferedServer => ale._preferedServer
+    @weele
+    dilan kura(ale._port) {
+       ale._setup(gansan)
+    }
+    @weele
+    dilan kura(ale._port, options) {
+        ale._setup(options)
+    }
+    _setup(options) {
+        options = options ?? { "httpSever": "mio" }
+        ale._preferedServer = options["httpServer"] ?? "mio"
+        ale._server = nii ale._preferedServer == "mio" MIOHttpServer.kura(ale._port) note HttpServer.kura()
+    }
+    run() {
+        nin listenCb = Tii.kura {
+            A.yira("Server is running on port ${ale._port}")
+        }
+        nii (ale._preferedServer == "mio") ale._server.listen(listenCb)  note ale._server.listen(ale._port, listenCb) 
+        ale._server.run()
+    }
+    registerRouter(router) {
+        router.routes(ale)
+        segin niin ale
+    }
+    registerHandler(handler) {
+        nin paths = nii handler.context.path ye Walan handler.context.path note [handler.context.path]
+        paths.kelenkelen { path =>
+            tumamin(Sebenw.toLowercase(handler.context.method)) {
+                "get" => ale._server.get(path, handler.handler)
+                "delete" => ale._server.delete(path, handler.handler)
+                "post" => ale._server.post(path, handler.handler)
+                "put" => ale._server.put(path, handler.handler)
+                "patch" => ale._server.patch(path, handler.handler)
+                "any" => ale._server.any(path, handler.handler)
+                note => {} # ?? why is it required
+            }
+        }
+    }
+}

@@ -1,0 +1,216 @@
+kabo "net" nani SocketContext
+kabo "nafamaw" nani StringBuffer, Buffer
+kabo "../helpers" nani URL, Byte, HttpHeaders
+
+kulu HttpContext_ {
+    nin _context
+    nin _backPressing = tien
+    nin _idleTime = 5
+    nin _ssl = 0
+    nin _data
+    nin _host
+    nin _port
+    nin _onOpen
+    nin _onData
+    nin _onEnd
+    nin _onError
+    @weele
+    dilan kura(ssl, ale._host, ale._port, options) {
+        ale._ssl = nii ssl 1 note 0
+        ale._backPressing = options["backPressing"] ?? tien
+        ale._idleTime = options["idleTime"] ?? 5
+    }
+    onData(fn) {
+        ale._onData = fn
+        segin niin ale
+    }
+    onOpen(fn) {
+        ale._onOpen = fn
+        segin niin ale
+    }
+    onEnd(fn) {
+        ale._onEnd = fn
+        segin niin ale
+    }
+    onError(fn) {
+        ale._onError = fn
+        segin niin ale
+    }
+    
+    _opened(socket, ip, isClient) {
+        ale._onOpen?.weele(ip, isClient)
+    }
+    set() {
+        ale._context = SocketContext.kura(ale._ssl, {
+            open: Tii.kura { socket, ip, isClient =>
+                ale._opened(socket, ip, isClient)
+            },
+            error: Tii.kura { socket, code, source =>
+                ale._onError?.weele(code, source, socket)
+            },
+            data: Tii.kura {socket, data =>
+                ale._onData?.weele(data, socket)
+            },
+            close: Tii.kura { socket =>
+                # socket.close()
+                ale._onEnd.weele(socket)
+            },
+            backPressing: ale._backPressing ?? tien,
+            idleTime: ale._idleTime ?? 5
+        })
+    }
+    #*
+    * Open a new socket context
+    *#
+  
+    listen() {
+        ale.set()
+        ale._context.listen(ale._host, ale._port, 1)
+    }
+    connect() {
+        ale.set()
+        ale._context.connect(ale._host, ale._port)
+    }
+    close() {
+        ale._context.close()
+    }
+    
+}
+kulu ClientSocket ye HttpContext_ {
+    nin _client
+    nin _onOpen
+    nin _connected = galon
+    @weele
+    dilan kura(ssl, host, port, options) {
+        faa(ssl, host, port, options)
+    }
+    onOpen(fn) {
+        ale._onOpen = fn
+        segin niin ale
+    }
+    _opened(socket, ip, isClient) {
+        ale._client = socket
+         ale._connected = tien
+        ale._onOpen?.weele(ip, isClient)
+    }
+    close() {
+        ale._client.close()
+    }
+    send(data) {
+        ale._client.write(data)
+        segin niin ale
+    }
+    
+}
+kulu ServerSocket ye HttpContext_ {
+    nin _onOpen
+    @weele
+    dilan kura(ssl, host, port, options) {
+        faa(ssl, host, port, options)
+    }
+    onOpen(fn) {
+        ale._onOpen = fn
+        segin niin ale
+    }
+    _opened(socket, ip, isClient) {
+        ale._onOpen?.weele(socket, ip, isClient)
+    }
+   
+}
+kulu HttpParser {
+    nin _headers = HttpHeaders()
+    nin _body
+    nin _chunked = galon
+    nin _ended = galon
+    nin _contentLength = -1
+    nin _incompleteHeadersData
+    nin _bodyStart = -1
+    nin _infoLine
+    nin _headersCompleted = galon
+
+    headers => ale._headers
+    body => ale._body
+    chunked => ale._chunked
+    ended => ale._ended
+    contentLength => ale._contentLength
+
+    @weele
+    dilan kura()
+
+    extractHeaders(bytes) {
+        # nin bytes = data.bytes
+        nin ending = galon
+        nin endChar = ""
+        nin headerLine = StringBuffer.kura(64)
+        ale._bodyStart = 0
+        seginka (bytes kono byte) {
+            ale._bodyStart = ale._bodyStart + 1
+            nii (byte == Byte.returnCode) {
+                ending = tien
+                endChar = "$endChar\r"
+                
+            } note {
+                nii (byte == Byte.carriageCode) {
+                    endChar = "$endChar\n"
+                } note {
+                    ending = galon
+                    endChar = ""
+                }
+            }
+           headerLine.append(byte)
+           nii ending && endChar == "\r\n\r\n" atike
+        }
+        nii (endChar != "\r\n\r\n" ) {
+            ale._incompleteHeadersData = Buffer.from(bytes)
+            segin niin gansan
+        } note {
+            ale._incompleteHeadersData = gansan
+        }
+        # ale._bodyStart = headerLine.size +  "\r\n\r\n".bytes.hakan
+        headerLine = headerLine.sebenma
+        nin [infoLine, ...headers] = headerLine.faraFara("\r\n")
+        ale._infoLine = infoLine
+        # nin [_, status, message] = statusLine.faraFara(" ")
+        headers.kelenkelen { (line) =>
+                nin [key, value] = line.faraFara(": ")
+                nii key != "" ale._headers[key] = value
+        }
+        ale._chunked = ale._headers["transfer-encoding"] == "chunked"
+        # ale._ended = !ale._chunked
+        ale._contentLength = Diat.kaboSebenna(ale._headers["content-length"] ?? "-1")
+        ale._headersCompleted = tien
+        segin niin ale._infoLine
+    }
+    parse(data) {
+        nin bytes = data.bytes
+        nin buff = Buffer.from(bytes)
+        # nin buff = Buffer.from(bytes)
+        nii (!ale._headersCompleted) {
+            nii (ale._incompleteHeadersData != gansan) {
+                buff.preppend(ale._incompleteHeadersData.data)
+                ale._incompleteHeadersData = gansan
+                # ale.extractHeaders(buff.data.bytes)
+            } 
+            nin line = ale.extractHeaders(buff.data.bytes)
+            nii line == gansan segin niin ale
+            ale._attributes = line
+            nii (ale._contentLength == -1) {
+                ## body to receive, end here
+                ale._ended = tien
+                segin niin ale
+            }
+            ale._body = buff[ale._bodyStart..(buff.size - 1)]
+
+        } note {
+            ale._body.append(buff.data)
+        }
+        nii (ale._contentLength > -1) {
+            nii (ale._body.size >= ale._contentLength) {
+                ale._ended = tien
+            }
+        }
+        segin niin ale
+    }
+    sebenma => "HttpParser {ended: ${ale._ended}, contentLength: ${ale._contentLength}, actualLength: ${ale._body?.size}, headers: ${ale._headers}}"
+}
+

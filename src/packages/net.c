@@ -1274,6 +1274,7 @@ typedef struct {
     struct us_socket_t *socket;
     MSCHandle *ref;
     MSCHandle *data;
+    MSCHandle *emitter;
 } SocketWrapper;
 
 
@@ -1284,7 +1285,7 @@ SocketWrapper *newSocket(Djuru *djuru, int slot, struct us_socket_t *socket, int
     }
     // check that this socket has not already been referenced
     SocketWrapper **ext = (SocketWrapper **) us_socket_ext(ssl, socket);
-    if (*ext != NULL && (*ext)->ref != NULL) {
+    if (ext!= NULL && *ext != NULL && (*ext)->ref != NULL) {
         MSCSetSlotHandle(djuru, slot, (*ext)->ref);
         return *ext;
     }
@@ -1295,6 +1296,7 @@ SocketWrapper *newSocket(Djuru *djuru, int slot, struct us_socket_t *socket, int
     wrapper->ssl = ssl;
     wrapper->data = NULL;
     wrapper->ref = NULL;
+    wrapper->emitter = NULL;
     return wrapper;
 }
 
@@ -1562,6 +1564,7 @@ void socketContextInit(Djuru *djuru) {
         context->serverNameEvent = MSCGetSlotHandle(djuru, 3);
     }
 
+
     us_socket_context_on_open(context->ssl, context->context,
                               context->ssl ? sslSocketContextOpenCallback : socketContextOpenCallback);
     us_socket_context_on_close(context->ssl, context->context,
@@ -1689,6 +1692,10 @@ void socketDestroy(void *handle) {
         MSCReleaseHandle(vm, wrapper->data);
         wrapper->data = NULL;
     }
+    if(wrapper->emitter != NULL) {
+        MSCReleaseHandle(vm, wrapper->emitter);
+        wrapper->emitter = NULL;
+    }
     if (wrapper->ref != NULL) {
         MSCReleaseHandle(vm, wrapper->ref);
         wrapper->ref = NULL;
@@ -1708,7 +1715,7 @@ void socketContextListen(Djuru *djuru) {
     int options = (int) MSCGetSlotDouble(djuru, 3);
     struct us_listen_socket_t *res = msc_socket_listen(context->ssl, context->context, ip, port, options,
                                                        sizeof(SocketWrapper *));
-    newSocket(djuru, 0, (struct us_socket_t *) res, context->ssl);
+    MSCSetSlotBool(djuru, 0, true);
 }
 
 void socketContextListenUnix(Djuru *djuru) {
@@ -1718,7 +1725,7 @@ void socketContextListenUnix(Djuru *djuru) {
     int options = (int) MSCGetSlotDouble(djuru, 2);
     struct us_listen_socket_t *res = msc_socket_listen_unix(context->ssl, context->context, ip, options,
                                                             sizeof(SocketWrapper *));
-    newSocket(djuru, 0, (struct us_socket_t *) res, context->ssl);
+    MSCSetSlotBool(djuru, 0, true);
 }
 
 
@@ -1825,7 +1832,8 @@ void socketWrite(Djuru *djuru) {
     SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
     int length;
     const char *bytes = MSCGetSlotBytes(djuru, 1, &length);
-    MSCSetSlotDouble(djuru, 0, us_socket_write(wrapper->ssl, wrapper->socket, bytes, length, 1));
+    int res = us_socket_write(wrapper->ssl, wrapper->socket, bytes, length, 1);
+    MSCSetSlotDouble(djuru, 0, res);
     us_socket_flush(wrapper->ssl, wrapper->socket);
 }
 
@@ -1853,6 +1861,25 @@ void socketGetData(Djuru *djuru) {
         MSCSetSlotNull(djuru, 0);
     } else {
         MSCSetSlotHandle(djuru, 0, wrapper->data);
+    }
+
+}
+
+void socketSetOnData(Djuru * djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    if (wrapper->emitter != NULL) {
+        // free the old handle
+        MSCReleaseHandle(djuru->vm, wrapper->emitter);
+    }
+    wrapper->emitter = MSCGetSlotHandle(djuru, 1);
+    MSCSetSlotNull(djuru, 0);
+}
+void socketGetOnData(Djuru *djuru) {
+    SocketWrapper *wrapper = (SocketWrapper *) MSCGetSlotExtern(djuru, 0);
+    if (wrapper->emitter == NULL) {
+        MSCSetSlotNull(djuru, 0);
+    } else {
+        MSCSetSlotHandle(djuru, 0, wrapper->emitter);
     }
 
 }

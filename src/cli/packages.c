@@ -301,6 +301,9 @@ extern void socketSetData(Djuru *djuru);
 
 extern void socketGetData(Djuru *djuru);
 
+extern void socketSetOnData(Djuru *djuru);
+extern void socketGetOnData(Djuru *djuru);
+
 
 
 
@@ -541,9 +544,11 @@ static ModuleRegistry coreCliModules[] =
                                                 METHOD("close()", socketClose)
                                                 METHOD("flush()", socketFlush)
                                                 METHOD("timeout(_)", socketTimeout)
+                                                METHOD("onData=(_)", socketSetOnData)
+                                                METHOD("onData", socketGetOnData)
                                                 METHOD("data=(_)", socketSetData)
                                                 METHOD("data", socketGetData)
-                                                METHOD("shutdown", socketIsShutdown)
+                                                METHOD("shutdown()", socketIsShutdown)
                                                 METHOD("remoteAddress", socketRemoteAddress)
                                                 METHOD("remotePort", socketRemotePort)
                                                 METHOD("localPort", socketLocalPort)

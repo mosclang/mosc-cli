@@ -1,0 +1,262 @@
+kabo "../common/context" nani ServerSocket, HttpParser
+kabo "nafamaw" nani StringBuffer, Buffer, Sebenw
+kabo "../helpers" nani URL
+kabo "json" nani JSON
+kabo "scheduler" nani DogodaBaga
+
+kulu HttpRequestParser ye HttpParser {
+    nin _method
+    nin _path
+    nin _version
+    method => ale._method
+    path => ale._path
+    version => ale._version
+
+    @weele 
+    dilan kura() {
+        faa()
+    }
+    parse(data) {
+        segin niin faa.parse(data)
+    }
+    _attributes=(line) {
+        nin [method, location, version] = line.faraFara(" ")
+        ale._method = Sebenw.toLowercase(method)
+        ale._path = location
+        ale._version = version
+    }
+    sebenma => "HttpRequest {method: ${ale._method}, path: ${ale._path}, version: ${ale._version}, parser: ${faa.sebenma}}"
+}
+kulu HttpRequest {
+    nin _parsed
+    nin _params = {}
+    nin data = {}
+    @weele
+    dilan kura(ale._parsed, requestPath) {
+        nin els = ale._parsed.path.faraFara("/")
+        nin params = requestPath.params
+        params.keys.kelenkelen {key => 
+            ale._params[params[key]] = els[key]
+        }
+    }
+    headers => ale._parsed.headers
+    header(name) => ale._parsed.headers[name]
+    method =>ale._parsed.method
+    path => ale._parsed.path
+    parameter(name) =>ale._params[name]
+    query(name) => ale._parsed.queries[name]
+    body => ale._parsed.body
+}
+kulu HttpResponse {
+    dialen HTTP_OK => "200 OK"
+    dialen HTTP_NOT_FOUND => "404 Not Found"
+    nin _socket
+    nin _req
+    nin _status
+    nin _pipe
+    @weele 
+    dilan kura(socket, ale._req) {
+        ale._socket = socket
+        ale._pipe = Buffer.kura(128)
+    }
+    send_() {
+        segin niin ale._socket.write(ale._pipe.data)
+    }
+    write(data) {
+        ale._pipe.append(data)
+        segin niin ale
+    }
+    writeStatus(status) {
+        nii ale._status != gansan segin niin ale
+        ale._status = status
+        ale.write("${ale._req.version} $status\r\n")
+        segin niin ale
+    }
+    writeHeader(name, value) {
+        ale.writeStatus(HttpResponse.HTTP_OK)
+        ale.write("${name}: ${value}\r\n")
+        segin niin ale
+    }
+    end() {
+        segin niin ale.end(gansan)
+    }
+    end(data) {
+        data = nii data ye Seben data note JSON.encode(data)
+        nin buff = nii data Buffer.from(data.bytes) note gansan
+        ale.writeStatus(HttpResponse.HTTP_OK)
+            .writeHeader("Content-Length", buff?.size ?? 0)
+            .writeHeader("Connection", "close")
+            .writeHeader("Server", "Mosccs")
+            .write("\r\n")
+        nii (buff != gansan ) ale.write(buff.data)
+        nin count = ale.send_()
+        nii (count == ale._pipe.size) {
+            ale._socket.shutdown()
+            ale._socket.close()
+        }
+        segin niin ale
+    }
+}
+kulu HttpServer_ {
+    nin _socket
+    nin _onRequest
+    @weele
+    dilan kura(url, ale._onRequest) {
+        url = nii url ye URL url note URL.parse(url)
+        nin socket = ServerSocket(url.secured, url.host, url.port, {})
+            socket
+            .onOpen { client, ip, isClient =>
+                ale.handleClient(client, ip)
+            }
+            .onData { data, socket =>
+                # resp.handle(data)
+                # nii (resp.ended) {
+                #     socket.close()
+                # }
+            }
+            .onEnd { socket =>
+                A.yira("Closing client socket")
+            }
+            .onError { (code, source) =>
+                A.yira("Error $code: $source")
+            }
+        ale._socket = socket
+    }
+    handleClient(socket, ip) {
+        nin request = HttpRequestParser()
+        socket.onData = Tii.kura { data =>
+            request.parse(data)
+            nii (request.ended) {
+                # callback request handler for processing
+                ale._onRequest?.weele(request, socket)
+            }
+        }
+    }
+    listen() {
+        ale._socket.listen() 
+    }
+
+}
+# kulu ParamIndexed {
+#     nin name
+#     nin index
+#     @weele
+#     dilan kura(ale.name, ale.index) {}
+# }
+kulu RequestPath {
+    nin _value
+    nin _params = {}
+    value => ale._value
+    params => ale._params
+    
+    @weele
+    dilan kura(ale._value) {
+        ale._setup()
+    }
+    _setup() {
+        nin els = ale._value.faraFara("/")
+        nin index = 0
+        seginka (els kono seg) {
+            nii (seg.beDamineNiin(":")) {
+                ale._params[index] = (seg[1..-1])
+            }
+            index = index + 1
+        }
+    }
+    sebenma => "RequestPath {value: ${ale._value}, params: ${ale._params}}"
+}
+kulu RequestRegistry {
+    nin _container = {}
+    @weele
+    dilan kura() {}
+    [method, pattern]=(handler) {
+        nin p = RequestPath.kura(pattern)
+        nin list = ale._container[method] ?? ale._container[method] = []
+        list.aFaraAkan([p, handler])
+        ale._container[method] = list
+    }
+    [method, path] {
+        nin list = ale._container[method]
+        seginka (list kono [requestPath, handler]) {
+            nin sourceEls = requestPath.value.faraFara("/")
+            nin targetEls = path.faraFara("/")
+            nii (sourceEls.hakan != targetEls.hakan) {
+                ipan
+            }
+            nin matches = tien
+            seginka (0...sourceEls.hakan kono it) {
+                nii (!sourceEls[it].beDamineNiin(":") && sourceEls[it] != targetEls[it] ) {
+                    matches = galon
+                    atike
+                }
+            }
+            nii matches segin niin [handler, requestPath]
+        }
+    }
+    
+}
+kulu HttpServer {
+    nin _server
+    nin _registry
+    @weele
+    dilan kura(port) {
+        ale._registry = RequestRegistry()
+        ale._server = HttpServer_("http://0.0.0.0:$port") { req, socket =>
+            nin [handler, requestPath] = ale._registry[req.method, req.path] ?? []
+            nin res = HttpResponse(socket, req)
+            nii (handler != gansan) {
+                DogodaBaga.nextTick {
+                    nin th = Djuru.kura {
+                        handler.weele(HttpRequest(req, requestPath), res)
+                    }
+                    th.aladie()
+                    nii (th.fili ) {
+                        res.writeStatus("500 Internal Server Error")
+                            .writeHeader("Content-Type", "text/plain")
+                            .end("Internal Server Error")
+                    }
+                }
+            } note {
+                A.yira("No handler for ${req.path}")
+                res.writeStatus("404 Not Found")
+                    .writeHeader("Content-Type", "text/plain")
+                    .end("Not Found")
+            }
+        }
+    }
+    get(path, handler) {
+        ale._registry["get", path] = handler
+        segin niin ale
+    }
+    post(path, handler) {
+        ale._registry["post", path] = handler
+        segin niin ale
+    }
+    put(path, handler) {
+        ale._registry["put", path] = handler
+        segin niin ale
+    }
+    patch(path, handler) {
+        ale._registry["patch", path] = handler
+        segin niin ale
+    }
+    delete(path, handler) {
+        ale._registry["delete", path] = handler
+        segin niin ale
+    }
+    any(path, handler) {
+        ale._registry["get", path] = handler
+        ale._registry["post", path] = handler
+        ale._registry["put", path] = handler
+        ale._registry["patch", path] = handler
+        ale._registry["delete", path] = handler
+        segin niin ale
+    }
+    listen(fn) {
+        ale._server.listen()
+        fn()
+    }
+    run() {
+        segin niin ale
+    }
+}

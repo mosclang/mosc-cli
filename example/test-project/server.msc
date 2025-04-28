@@ -1,7 +1,10 @@
 kabo "mio/mio" nani MioServerContext, MioRouter
 kabo "json" nani JSON
+kabo "nafamaw" nani Buffer
+kabo "scheduler" nani DogodaBaga
 kulu IndexControler ye MioRouter {
-    nin list = []
+    nin list = [{id: 2, name: "Amadou"}, {id: 2, name: "Amadou"}, {id: 2, name: "Amadou"}, {id: 2, name: "Amadou"}, {id: 2, name: "Amadou"}, {id: 2, name: "Amadou"}]
+    nin id = 0
     @weele
     dilan kura() {}
 
@@ -11,17 +14,38 @@ kulu IndexControler ye MioRouter {
     }
     @!post(path="/new")
     post(req, res) {
-        nin b = req.body.kononWaliGansan
+        nin b = req.body.data
         A.yira(b)
         nin body = JSON.parse(b)
+        ale.id = ale.id + 1
+        body["id"] = ale.id
         ale.list.aFaraAkan(body)
-        res.cork { r => r.end(ale.list) }
+        res.end(ale.list)
+    }
+    @!put(path="/update/:id")
+    update(req, res) {
+        nin buff = Buffer.kura(128)
+        A.yira("Params : ${req.data["params"]}")
+        A.yira("Queries : ${req.data["queries"]}")
+        nin body = req.body.data
+        A.yira("Body: $body")  
+        body = JSON.parse(body)
+        A.yira("Body: $body")
+        nin item =  ale.list.yoroMin {e => e["id"] == Diat.kaboSebenna(req.parameter("id"))}.bla {it => nii it.laKolon gansan note it.walanNa[0]}
+        item["name"] = body["name"]
+       
+        res.end(ale.list)
+        
     }
     @!any(path="/")
     index(req, res) {
         res.end(ale.list)
     }
+    @!before(method = "GET")
+    before(req, res) {
+        A.yira("Before ${req.method}")
+    }
 }
 
 
-MioServerContext().registerRouter(IndexControler()).run(3001)
+MioServerContext(3001, {httpServer: "uws"}).registerRouter(IndexControler()).run()

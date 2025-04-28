@@ -1,5 +1,5 @@
-kabo "./src/client" nani MioClient
-kabo "./src/server" nani MioServerContext, MioRouter
+kabo "./src/client/index" nani MioClient
+kabo "./src/server/index" nani MioServerContext, MioRouter
 kabo "./src/helpers" nani URL
 # nani "./src/client"
 # nin client = MioClient()

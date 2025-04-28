@@ -3,12 +3,17 @@ kabo "net" nani SocketContext, Socket, Util
 nin context = SocketContext.kura(0, {
     open: Tii.kura { client, ip, isClient =>
         A.yira(":::New CLient connection::$ip:: ${client.remoteAddress}")
+        client.onData = Tii.kura { d =>
+            A.yira("Received data from client: $d")
+            client.write("Hello from server to client")
+        }
     },
     error: Tii.kura { code, source =>
         A.yira("UVSocket error from $source: $code")
     },
     data: Tii.kura { client, data =>
-        client.write("Hello from server to client")
+        A.yira("GReceived data from client: $data")
+        # client.write("Hello from server to client")
     },
     end: Tii.kura {client =>
         client.close()
@@ -17,7 +22,7 @@ nin context = SocketContext.kura(0, {
 
 nii(context.listen("127.0.0.1", 5000, 1)) {
     A.yira("Listening for connection on 5000")
-    A.yira("IP for oms.orangemali.com is ${Util.resolveName("oms.orangemali.com")}")
+    A.yira("IP for oms.orangemali.com is ${Util.resolveName("oms.orangemali.com").konon}")
 
     # Util.resolveName("oms.orangemali.com", gansan) { dns => A.yira("IP for oms.orangemali.com is $dns")}
 } note {

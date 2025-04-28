@@ -1,0 +1,117 @@
+
+// #include "os.h"
+// #include "runtime.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <uv.h>
+#include "libuwebsockets.h"
+
+// int main(int argc, const char *argv[]) {
+
+//     osSetArguments(argc, argv);
+
+//     MSCInterpretResult result = runCLI();
+//     if (getExitCode() != 0) {
+//         return getExitCode();
+//     }
+
+//     // Exit with an error code if the script failed.
+//     if (result == RESULT_RUNTIME_ERROR) return 70; // EX_SOFTWARE.
+//     // TODO: 65 is impossible now and will need to be handled inside `cli.msc`
+//     if (result == RESULT_COMPILATION_ERROR) return 65; // EX_DATAERR.
+
+//     return getExitCode();
+// }
+
+typedef struct  {
+    char *buffer;
+    unsigned int size;
+    uws_req_t *req;
+}HttpResp;
+static uv_loop_t *loop;
+static uv_async_t *microtaskAsync;
+static uws_res_t *response;
+static uws_req_t *request;
+static void uwsResOnData(uws_res_t *res, const char *chunk, size_t chunk_length, bool is_end, void *optional_data) {
+    HttpResp * hresp = (HttpResp*) optional_data;
+    if (is_end) {
+        memcpy(hresp->buffer + hresp->size, chunk, chunk_length);
+        hresp->size = hresp->size + chunk_length;
+        hresp->buffer[hresp->size] = '\0';
+        // printf("Receided %d bytes, total size: %d,  data %s\n", chunk_length, hresp->size, hresp->buffer);
+       // printf("-- %.*s --\n", hresp->buffer);
+    //    const char *value;
+    //     size_t size = uws_req_get_parameter(hresp->req, 0, &value);
+    //     printf("Param:: %.*s\n", size, value);
+        uws_res_end(0, res, hresp->buffer, hresp->size, true);
+        free(hresp->buffer);
+        free(hresp);
+    } else {
+        memcpy(hresp->buffer + hresp->size, chunk, chunk_length);
+        hresp->size = hresp->size + chunk_length;
+    }
+}
+static void resOnAbortHandler(uws_res_t *res, void *optional_data) {
+    printf("Request aborted\n");
+
+}
+static void uwsReqHandler(uws_res_t *res, uws_req_t *req, void *user_data)  {
+    printf("Handling requests\n");
+    response = res;
+    request = req;
+    const char *value;
+    size_t size = uws_req_get_parameter(request, 0, &value);
+    printf("Parameter= %.*s\n", size, value);
+    uws_res_on_aborted(0, response, resOnAbortHandler, NULL);
+    
+    uv_async_send(microtaskAsync);
+}
+static void
+uwsAppListenHandler(struct us_listen_socket_t *listen_socket, uws_app_listen_config_t config, void *user_data) {
+    printf("Listening on port %d\n", 3003);
+}
+static void asyncCb(uv_async_t *handle) { 
+    printf("Handling callback\n");
+    HttpResp *httpResp = malloc(sizeof(HttpResp));
+    httpResp->buffer = malloc(sizeof(char) * 1024);
+    httpResp->size = 0;
+    httpResp->req = request;
+    
+    const char *value;
+    size_t size = uws_req_get_parameter(request, 0, &value);
+    printf("Param:: %.*s\n", size, value);
+    uws_res_on_data(0, response, uwsResOnData, httpResp);
+    
+    uws_res_end(0, response, "Hello", 5, true);
+}
+
+static void deferCb1(void *userData) {
+
+}
+
+int main(int argc, const char* argv[]) {
+    loop = (uv_loop_t *) malloc(sizeof(uv_loop_t));
+    uv_loop_init(loop);
+    uws_loop_defer(uws_get_loop_with_native(loop), deferCb1, NULL);
+    microtaskAsync = malloc(sizeof(uv_async_t));
+    uv_async_init(loop, microtaskAsync, asyncCb);
+    struct us_socket_context_options_t options = {
+        .key_file_name = NULL,
+        .cert_file_name = NULL,
+        .passphrase = NULL,
+        .ca_file_name = NULL,
+        .ssl_prefer_low_memory_usage = false,
+        .dh_params_file_name = NULL,
+        .ssl_ciphers = NULL,
+    };
+    uws_app_t *app = uws_create_app(0, options);
+    uws_app_any(0, app, "/test/:id", uwsReqHandler, NULL);
+    uws_app_listen(0, app, 3003, uwsAppListenHandler, NULL);
+    // uws_app_run(0, app);
+    uv_run(loop, UV_RUN_DEFAULT);
+    uv_close((uv_handle_t *) microtaskAsync, NULL);
+    uv_loop_close(loop);
+    free(microtaskAsync);
+    free(loop);
+}

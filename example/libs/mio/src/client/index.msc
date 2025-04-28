@@ -1,0 +1,190 @@
+kabo "nafamaw" nani StringBuffer, Buffer
+kabo "lahidu" nani Lahidu
+kabo "../common/context" nani ClientSocket, HttpParser
+kabo "nafamaw" nani Sebenw
+kabo "../helpers" nani URL, Byte, HttpHeaders
+kabo "json" nani JSON
+
+
+kulu HttpResponse ye HttpParser {
+    nin _status = gansan
+    nin _message
+    status => ale._status
+    message => ale._message
+    
+    @weele
+    dilan kura() {
+        faa()
+    }
+    
+    _attributes=(line) {
+        nin [_, status, ...message] = line.faraFara(" ")
+        ale._status = status
+        ale._message = message.kunBen(" ")
+    }
+    sebenma => "HttpResponse {status: ${ale._status}, message: ${ale._message}, parser: ${faa.sebenma}}"
+}
+
+kulu RequestBody
+kulu StringRequestBody ye RequestBody {
+    nin _content
+    @weele
+    dilan kura(ale._content) {}
+    data => ale._content
+    size => ale._content.hakan
+    contentType => "text/plain"
+}
+kulu JsonRequestBody ye StringRequestBody {
+    @weele 
+    dilan kura(data) {
+        faa(JSON.encode(data))
+    }
+    contentType => "application/json"
+}
+kulu BinaryRequestBody ye RequestBody {
+    nin _content
+    dilan kura(ale._content) {}
+    data => ale._content
+    size => ale._content.hakan
+    contentType => "application/octet-stream"
+}
+kulu HttpRequest {
+    nin _method
+    nin _url
+    nin _body
+    nin _headers
+    url => ale._url
+    body => ale._body
+    method => ale._method
+    headers => ale._headers
+    @weele
+    dilan kura(url, ale._method, body, headers) {
+        # nii !(body ye RequestBody) Djuru.tike("Invlid request body")
+        ale._body = body
+        ale._url = nii url ye URL url note URL.parse(url)
+        ale._headers = HttpHeaders({"host": ale._url.host, "accept": "*/*", "user-agent": "moscc"})
+        nii headers != gansan ale._headers.addAll(headers)
+    }
+    @weele 
+    dilan kura() {
+        ale._headers = HttpHeaders({"accept": "*/*", "user-agent": "moscc"})
+    }
+
+    body(data) {
+        ale._body = data
+        segin niin ale
+    }
+    url(url) {
+        ale._url = nii url ye URL url note URL.parse(url)
+        ale._headers["Host"] = ale._url.host
+        segin niin ale
+    }
+    method(method) {
+        ale._method = method
+        segin niin ale
+    }
+    header(key, value) {
+        ale._headers.append(key, value)
+        segin niin ale
+    }
+    build() {
+        nin url = nii ale._url ye URL ale._url note URL.parse(ale._url)
+        nin body = ale.body
+        nin headers = ale._headers.clone
+        nii (body != gansan && body ye RequestBody) {
+            headers.append("content-type", headers["content-type"] ?? body.contentType)
+            headers.append("content-length", body.size).build()
+        }
+        segin niin StringBuffer.kura(128)
+            .append("${ale._method} ${url.location} HTTP/1.1\r\n")
+            .append(headers.build())
+            .append(body?.data ?? "").sebenma
+    }
+}
+kulu HttpClient_ {
+    @weele
+    dilan kura() {}
+    sendRequest_(method, fullURL, body, headers) {
+        segin niin Lahidu.kura { res, rej =>
+            nin th = Djuru.kura {
+
+                nin url = URL.parse(fullURL)
+                nin request = HttpRequest(url, method, body, headers)
+                nin resp = HttpResponse()
+                nin socket = ClientSocket(url.secured, url.host, url.port, {})
+                socket
+                .onOpen { ip, isClient =>
+                    socket.send(request.build())
+                }
+                .onData { data =>
+                    resp.parse(data)
+                    nii (resp.ended) {
+                        socket.close()
+                    }
+                }
+                .onEnd {
+                    
+                    res(resp)
+                }
+                .onError { (code, source) =>
+                    rej(code, source)
+                }
+                socket.connect()
+            }
+            th.aladie()
+        }
+    }
+    get(url) => ale.get(url, gansan)
+    get(url, headers) {
+        segin niin ale.sendRequest_("GET", url, gansan, headers)
+    }
+
+    
+    post(url, data) => ale.post(url, data, gansan)
+    post(url, data, headers) {
+        segin niin ale.sendRequest_("POST", url, data, headers)
+    }
+    put(url, data) => ale.put(url, data, gansan)
+    put(url, data, headers) {
+        segin niin ale.sendRequest_("PUT", url, data, headers)
+    }
+    delete(url) => ale.delete(url, gansan)
+    delete(url, headers) {
+        segin niin ale.sendRequest_("DELETE", url, gansan, headers)
+    }
+    patch(url, data) => ale.patch(url, data, gansan);
+    patch(url, data, headers) {
+        segin niin ale.sendRequest_("PATCH", url, data, headers)
+    }
+    ws(url, handler) {
+        A.yira("WS $url")
+    }
+}
+kulu MioClient {
+    nin _client = HttpClient_()
+    @weele
+    dilan kura() {}
+    version { "0.1.0" }
+    guessedBody(data) {
+        nii data ye RequestBody segin niin data
+        nii data ye Seben segin niin StringRequestBody.kura(data)
+        nii data ye Wala || data ye Walan segin niin JsonRequestBody.kura(data)
+        segin niin StringRequestBody.kura(data.sebenma)
+    }
+    get(options) {
+        segin niin ale._client.get(options["url"],  options["headers"])
+    }
+    post(options) {
+        segin niin ale._client.post(options["url"],  ale.guessedBody(options["body"]), options["headers"])
+    }
+    put(options) {
+        segin niin ale._client.put(options["url"],  ale.guessedBody(options["body"]), options["headers"])
+    }
+    delete(options) {
+        segin niin ale._client.delete(options["url"],  options["headers"])
+    }
+    patch(options) {
+        segin niin ale._client.patch(options["url"],  ale.guessedBody(options["body"]), options["headers"])
+    }
+
+}
