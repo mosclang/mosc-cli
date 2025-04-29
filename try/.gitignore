@@ -1,0 +1,6 @@
+cmake-*/
+.DS_Store
+.idea/
+bin/
+dump.txt
+build/

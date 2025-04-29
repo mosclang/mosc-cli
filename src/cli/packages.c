@@ -53,7 +53,7 @@ extern void fileSize(Djuru *djuru);
 extern void fileStat(Djuru *djuru);
 
 extern void fileWriteBytes(Djuru *djuru);
-
+#ifndef __EMSCRIPTEN__
 extern void platformHomePath(Djuru *djuru);
 
 extern void platformIsPosix(Djuru *djuru);
@@ -75,6 +75,7 @@ extern void processExit(Djuru *djuru);
 extern void processExec(Djuru *djuru);
 
 extern void processChdir(Djuru *djuru);
+#endif
 
 extern void statPath(Djuru *djuru);
 
@@ -414,6 +415,7 @@ static ModuleRegistry coreCliModules[] =
                                                 STATIC_METHOD("write(_)", stderrWrite)
                                 END_CLASS
                 END_MODULE
+                #ifndef __EMSCRIPTEN__
                 MODULE(os)
                                 CLASS(Platform)
                                                 STATIC_METHOD("homePath", platformHomePath)
@@ -431,6 +433,7 @@ static ModuleRegistry coreCliModules[] =
                                                 STATIC_METHOD("chdir_(_)", processChdir)
                                 END_CLASS
                 END_MODULE
+                #endif
                 MODULE(repl)
                 END_MODULE
                 MODULE(scheduler)

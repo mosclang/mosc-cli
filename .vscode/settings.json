@@ -71,6 +71,8 @@
         "stdio.h": "c",
         "any": "cpp",
         "condition_variable": "cpp",
-        "future": "cpp"
+        "future": "cpp",
+        "strscpy.h": "c",
+        "limits.h": "c"
     }
 }
