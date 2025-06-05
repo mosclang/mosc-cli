@@ -1,5 +1,5 @@
 * text=auto
-*.msc linguist-language=JavaScript
-*.mosc linguist-language=JavaScript
+*.msc linguist-language=Pyton
+*.mosc linguist-language=Pyton
 *.msc linguist-vendored
 *.mosc linguist-vendored
