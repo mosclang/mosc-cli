@@ -1,0 +1,5 @@
+* text=auto
+*.msc linguist-language=JavaScript
+*.mosc linguist-language=JavaScript
+*.msc linguist-vendored
+*.mosc linguist-vendored

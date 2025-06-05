@@ -91,6 +91,7 @@ kulu HttpResponse {
         nii (buff != gansan ) ale.write(buff.data)
         nin count = ale.send_()
         nii (count == ale._pipe.size) {
+            A.yira("Close socket")
             ale._socket.shutdown()
             ale._socket.close()
         }

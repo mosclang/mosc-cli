@@ -12,7 +12,7 @@ kulu IndexControler ye MioRouter {
     health(req, res) {
         res.end("Hello Guy")
     }
-    @!post(path="/new")
+    @!post(path="/new", props="path.id", props="path.name")
     post(req, res) {
         nin b = req.body.data
         A.yira(b)
@@ -48,4 +48,4 @@ kulu IndexControler ye MioRouter {
 }
 
 
-MioServerContext(3001, {httpServer: "uws"}).registerRouter(IndexControler()).run()
+MioServerContext(3001, {httpServer: "mio"}).registerRouter(IndexControler()).run()
