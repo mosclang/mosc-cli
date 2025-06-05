@@ -1,5 +1,5 @@
 * text=auto
-*.msc linguist-language=Pyton
-*.mosc linguist-language=Pyton
+*.msc linguist-language=Python
+*.mosc linguist-language=Python
 *.msc linguist-vendored
 *.mosc linguist-vendored
